@@ -1,0 +1,23 @@
+{
+  "short_name": "TSCPP OS",
+  "name": "TSCPP-OS Desktop",
+  "description": "A highly functional fake desktop for tscpp. I will add more stuff over time to make it as close to a real desktop as possible.",
+  "icons": [
+    {
+      "src": "TSCPP.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "TSCPP.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/TSCPP-OS/index.html",
+  "scope": "/TSCPP-OS/",
+  "id": "/TSCPP-OS/",
+  "background_color": "#000000",
+  "display": "fullscreen",
+  "theme_color": "#000000"
+}
