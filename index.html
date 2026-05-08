@@ -925,7 +925,7 @@ const ITERM_CMDS = {
      ['clear','Clear screen'],['login','Become ROOT'],['logout','End ROOT session'],
      ['reg query [path]','Query registry'],['reg set [path] [val]','Set registry value'],
     ].forEach(([c,d]) => termPrint('  ' + c.padEnd(26) + d, ''));
-    termPrint('  Full terminal: TSCPP_Terminal.html', 'dim');
+    termPrint('  Full terminal: TSCPP-Advanced (launch from settings menu -> system tab)', 'dim');
   },
   clear: () => { const o=document.getElementById('term-out'); if(o) o.innerHTML=''; },
   pwd:   () => termPrint(termCwd, 'sys'),
