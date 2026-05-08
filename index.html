@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TSCPP-OS Desktop</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
+
+:root {
+  --green: #00ff41; --green-dim: #00c711; --green-dark: #003d10;
+  --amber: #ffaa00; --red: #ff3333; --blue: #00aaff; --cyan: #00ffee;
+  --bg: #060a06; --surface: #0c120c; --surface2: #111a11;
+  --border: #1a2e1a; --border2: #243824;
+  --text: #c8d8c8; --text-dim: #6a8a6a; --text-mute: #2a4a2a;
+  --taskbar-h: 44px;
+  --win-title: 30px;
+  --wallpaper: radial-gradient(ellipse at 20% 50%, #0a1f0a 0%, #060a06 50%, #050808 100%);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+}
+
+/* ── BOOT / LOGIN ─────────────────────────────────────────────────────────── */
+#boot-screen {
+  position: fixed; inset: 0; z-index: 1000;
+  background: #000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px;
+}
+#boot-screen.hidden { display: none; }
+.boot-line { font-size: 12px; color: #2a5a2a; letter-spacing: 1px; animation: boot-fade 0.3s ease; }
+@keyframes boot-fade { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
+.boot-ok   { color: #00c711; }
+.boot-warn { color: #ffaa00; }
+.boot-err  { color: #ff3333; }
+#boot-progress { width: 300px; height: 2px; background: #111; margin-top: 20px; }
+#boot-prog-fill { height: 100%; background: var(--green); width: 0; transition: width 0.15s; }
+
+#login-screen {
+  position: fixed; inset: 0; z-index: 900;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+}
+#login-screen.hidden { display: none; }
+.ls-logo { font-family: 'Orbitron', monospace; font-size: 32px; font-weight: 700; color: var(--green); letter-spacing: 8px; text-shadow: 0 0 30px rgba(0,255,65,0.4); animation: ls-pulse 3s ease-in-out infinite; }
+@keyframes ls-pulse { 0%,100%{text-shadow:0 0 20px rgba(0,255,65,0.4);} 50%{text-shadow:0 0 50px rgba(0,255,65,0.8);} }
+.ls-sub { font-family: 'Orbitron', monospace; font-size: 10px; color: var(--text-mute); letter-spacing: 4px; }
+.ls-user-icon { font-size: 40px; opacity: 0.5; }
+.ls-username { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--green-dim); letter-spacing: 2px; }
+.ls-input-wrap {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--border2); background: var(--surface);
+  padding: 10px 16px; width: 280px;
+  transition: border-color 0.2s;
+}
+.ls-input-wrap:focus-within { border-color: var(--green-dim); }
+.ls-input-wrap.shake { animation: shake 0.4s; border-color: var(--red); }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+.ls-input-wrap label { font-size: 10px; color: var(--text-mute); }
+#login-input { background: transparent; border: none; outline: none; color: var(--green); font-family: inherit; font-size: 13px; flex: 1; caret-color: var(--green); }
+.ls-hint { font-size: 10px; color: var(--text-mute); }
+.ls-hint span { color: #1a3a1a; }
+.ls-bars { display: flex; gap: 4px; align-items: flex-end; }
+.ls-bar { width: 4px; background: var(--green-dark); animation: lb 1.2s ease-in-out infinite; }
+.ls-bar:nth-child(1){height:8px;animation-delay:0s} .ls-bar:nth-child(2){height:14px;animation-delay:.2s}
+.ls-bar:nth-child(3){height:10px;animation-delay:.4s} .ls-bar:nth-child(4){height:16px;animation-delay:.1s}
+.ls-bar:nth-child(5){height:6px;animation-delay:.3s}
+@keyframes lb { 0%,100%{opacity:.3;transform:scaleY(1)} 50%{opacity:1;transform:scaleY(1.3)} }
+#ls-time { font-family: 'Orbitron', monospace; font-size: 28px; color: var(--text-dim); letter-spacing: 4px; }
+#ls-date { font-size: 11px; color: var(--text-mute); letter-spacing: 2px; }
+
+/* ── DESKTOP ──────────────────────────────────────────────────────────────── */
+#desktop {
+  position: fixed; inset: 0; bottom: var(--taskbar-h);
+  background: var(--wallpaper);
+  overflow: hidden;
+}
+#desktop.hidden { display: none; }
+
+/* Scanlines */
+#desktop::before {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
+  pointer-events: none; z-index: 0;
+}
+
+/* CRT vignette */
+#desktop::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none; z-index: 0;
+}
+
+/* Grid pattern */
+#desktop-grid {
+  position: absolute; inset: 0; z-index: 1;
+  background-image: linear-gradient(rgba(0,255,65,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,65,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* Desktop Icons */
+#desktop-icons {
+  position: absolute; top: 16px; left: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 2;
+}
+.desk-icon {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 8px 6px; width: 80px; cursor: pointer;
+  border: 1px solid transparent; border-radius: 2px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.desk-icon:hover { background: rgba(0,255,65,0.07); border-color: var(--border); }
+.desk-icon.selected { background: rgba(0,255,65,0.12); border-color: var(--green-dark); }
+.desk-icon-img {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  background: var(--surface2); border: 1px solid var(--border2);
+}
+.desk-icon-label { font-size: 10px; color: var(--text); text-align: center; line-height: 1.3; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+
+/* Right-side icons */
+#desktop-icons-right {
+  position: absolute; top: 16px; right: 16px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 2;
+}
+
+/* ── TASKBAR ──────────────────────────────────────────────────────────────── */
+#taskbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--taskbar-h);
+  background: rgba(8,14,8,0.95);
+  border-top: 1px solid var(--border2);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center;
+  z-index: 500;
+  gap: 0;
+}
+#start-btn {
+  height: 100%; padding: 0 16px;
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; border-right: 1px solid var(--border);
+  background: var(--green-dark);
+  font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700;
+  color: var(--green); letter-spacing: 2px;
+  transition: background 0.15s;
+}
+#start-btn:hover { background: #005520; }
+#start-btn.active { background: #005520; border-bottom: 2px solid var(--green); }
+#tb-apps { display: flex; align-items: center; gap: 2px; padding: 0 8px; flex: 1; overflow: hidden; }
+.tb-app-btn {
+  height: 34px; padding: 0 12px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 11px; color: var(--text-dim);
+  border: 1px solid transparent; border-radius: 2px;
+  transition: all 0.15s; white-space: nowrap; max-width: 160px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.tb-app-btn:hover { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.tb-app-btn.active { background: var(--surface2); border-color: var(--green-dark); color: var(--green-dim); border-bottom-color: var(--green); }
+.tb-app-btn.minimized { opacity: 0.5; }
+.tb-app-icon { font-size: 14px; }
+#tb-tray {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 14px; border-left: 1px solid var(--border);
+  height: 100%;
+}
+.tray-item { font-size: 11px; color: var(--text-mute); cursor: pointer; transition: color 0.15s; }
+.tray-item:hover { color: var(--green-dim); }
+.tray-item.ok   { color: var(--green-dim); }
+.tray-item.warn { color: var(--amber); }
+.tray-item.err  { color: var(--red); }
+#tb-clock { font-family: 'Orbitron', monospace; font-size: 11px; color: var(--text-dim); text-align: right; line-height: 1.4; }
+
+/* ── START MENU ───────────────────────────────────────────────────────────── */
+#start-menu {
+  position: fixed; bottom: var(--taskbar-h); left: 0;
+  width: 340px;
+  background: rgba(8,14,8,0.97);
+  border: 1px solid var(--border2); border-bottom: none;
+  z-index: 490;
+  display: none;
+}
+#start-menu.open { display: flex; flex-direction: column; }
+.sm-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.sm-avatar { width: 36px; height: 36px; background: var(--green-dark); border: 1px solid var(--green-dim); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.sm-user { font-family: 'Orbitron', monospace; font-size: 11px; color: var(--green-dim); }
+.sm-role { font-size: 10px; color: var(--text-mute); }
+.sm-search { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.sm-search input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--green); font-family: inherit; font-size: 12px;
+  padding: 6px 10px; outline: none;
+}
+.sm-search input:focus { border-color: var(--green-dark); }
+.sm-section { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.sm-section-title { font-size: 9px; letter-spacing: 2px; color: var(--text-mute); padding: 2px 16px 6px; font-family: 'Orbitron', monospace; }
+.sm-app-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 0 8px; }
+.sm-app {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; cursor: pointer; border: 1px solid transparent;
+  border-radius: 2px; transition: all 0.15s;
+}
+.sm-app:hover { background: rgba(0,255,65,0.07); border-color: var(--border); }
+.sm-app-icon { font-size: 20px; }
+.sm-app-name { font-size: 9px; color: var(--text-dim); text-align: center; }
+.sm-power { display: flex; gap: 2px; padding: 8px; }
+.sm-power-btn {
+  flex: 1; padding: 8px; display: flex; align-items: center; justify-content: center;
+  gap: 6px; cursor: pointer; border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-mute); transition: all 0.15s;
+}
+.sm-power-btn:hover { border-color: var(--red); color: var(--red); background: rgba(255,51,51,0.05); }
+
+/* ── WINDOWS ──────────────────────────────────────────────────────────────── */
+.window {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  min-width: 320px; min-height: 200px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  z-index: 10;
+}
+.window.focused { border-color: var(--green-dark); box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,255,65,0.08); z-index: 20; }
+.window.minimized { display: none; }
+.window.maximized { top: 0 !important; left: 0 !important; width: 100% !important; height: calc(100vh - var(--taskbar-h)) !important; }
+
+.win-titlebar {
+  height: var(--win-title); flex-shrink: 0;
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 8px; gap: 8px;
+  cursor: move;
+}
+.window.focused .win-titlebar { background: #0d1a0d; border-bottom-color: var(--green-dark); }
+.win-icon { font-size: 13px; }
+.win-title { font-family: 'Orbitron', monospace; font-size: 10px; color: var(--green-dim); letter-spacing: 1px; flex: 1; pointer-events: none; }
+.win-controls { display: flex; gap: 3px; }
+.win-btn {
+  width: 20px; height: 18px; border: 1px solid var(--border2);
+  background: var(--surface); color: var(--text-mute);
+  font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s; font-family: monospace;
+}
+.win-btn:hover { background: var(--surface2); }
+.win-btn.close:hover { background: #2a0000; color: var(--red); border-color: var(--red); }
+.win-btn.maximize:hover { background: var(--green-dark); color: var(--green); }
+.win-btn.minimize:hover { background: #2a2000; color: var(--amber); }
+
+.win-body { flex: 1; overflow: hidden; position: relative; }
+.win-resize {
+  position: absolute; bottom: 0; right: 0;
+  width: 12px; height: 12px; cursor: se-resize; z-index: 5;
+  background: linear-gradient(135deg, transparent 50%, var(--border2) 50%);
+}
+
+/* ── APP STYLES ───────────────────────────────────────────────────────────── */
+
+/* Terminal App */
+.app-terminal {
+  background: #060a06; color: var(--green);
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  height: 100%; display: flex; flex-direction: column; overflow: hidden;
+}
+.term-output { flex: 1; overflow-y: auto; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+.term-output::-webkit-scrollbar { width: 3px; }
+.term-output::-webkit-scrollbar-thumb { background: var(--green-dark); }
+.term-input-bar { border-top: 1px solid var(--border); padding: 6px 10px; display: flex; align-items: center; gap: 8px; background: #0a0f0a; flex-shrink: 0; }
+.term-prompt { color: var(--green-dim); font-size: 12px; white-space: nowrap; }
+.term-prompt.root { color: var(--amber); }
+.term-cmd { background: transparent; border: none; outline: none; color: var(--green); font-family: inherit; font-size: 12px; flex: 1; caret-color: var(--green); }
+.t-sys { color: var(--cyan); } .t-err { color: var(--red); } .t-admin { color: var(--amber); }
+.t-success { color: var(--green); } .t-dim { color: #1e3e1e; } .t-warn { color: var(--amber); }
+.t-sep { color: #1a2e1a; } .t-echo { color: #2a6a2a; }
+
+/* File Manager */
+.app-filemanager { height: 100%; display: flex; flex-direction: column; font-size: 12px; }
+.fm-toolbar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 6px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.fm-nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-mute); padding: 3px 8px; cursor: pointer; font-family: inherit; font-size: 11px; }
+.fm-nav-btn:hover { color: var(--green-dim); border-color: var(--green-dark); }
+.fm-path { flex: 1; background: #060a06; border: 1px solid var(--border); color: var(--green-dim); padding: 3px 8px; font-family: inherit; font-size: 11px; outline: none; }
+.fm-body { flex: 1; display: flex; overflow: hidden; }
+.fm-sidebar { width: 140px; border-right: 1px solid var(--border); overflow-y: auto; padding: 6px 0; flex-shrink: 0; background: #080d08; }
+.fm-sidebar::-webkit-scrollbar { width: 2px; }
+.fm-dir-item { padding: 5px 12px; font-size: 11px; color: var(--text-mute); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.fm-dir-item:hover { background: rgba(0,255,65,0.04); color: var(--green-dim); }
+.fm-dir-item.active { background: rgba(0,255,65,0.08); color: var(--green); }
+.fm-main { flex: 1; overflow-y: auto; padding: 8px; background: #060a06; }
+.fm-main::-webkit-scrollbar { width: 3px; }
+.fm-main::-webkit-scrollbar-thumb { background: var(--border); }
+.fm-file-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.fm-file-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 8px; width: 80px; cursor: pointer;
+  border: 1px solid transparent; border-radius: 2px;
+}
+.fm-file-item:hover { background: rgba(0,255,65,0.06); border-color: var(--border); }
+.fm-file-item.selected { background: rgba(0,255,65,0.1); border-color: var(--green-dark); }
+.fm-file-icon { font-size: 22px; }
+.fm-file-name { font-size: 9px; color: var(--text-dim); text-align: center; word-break: break-all; line-height: 1.3; }
+.fm-file-size { font-size: 8px; color: var(--text-mute); }
+.fm-statusbar { border-top: 1px solid var(--border); padding: 4px 10px; font-size: 10px; color: var(--text-mute); background: var(--surface2); flex-shrink: 0; }
+
+/* Text Editor */
+.app-editor { height: 100%; display: flex; flex-direction: column; }
+.ed-toolbar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 4px 8px; display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.ed-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-mute); padding: 3px 10px; cursor: pointer; font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 1px; }
+.ed-btn:hover { color: var(--green); border-color: var(--green-dark); }
+.ed-filename { font-size: 11px; color: var(--green-dim); margin-left: auto; font-family: 'Orbitron', monospace; }
+.ed-modified { color: var(--amber); margin-left: 4px; font-size: 10px; }
+.ed-body { flex: 1; background: #060a06; color: var(--green); font-family: 'Share Tech Mono', monospace; font-size: 12px; border: none; outline: none; resize: none; padding: 12px; line-height: 1.7; caret-color: var(--green); }
+.ed-body::selection { background: var(--green-dark); }
+.ed-statusbar { border-top: 1px solid var(--border); padding: 3px 10px; font-size: 10px; color: var(--text-mute); background: var(--surface2); flex-shrink: 0; display: flex; gap: 20px; }
+
+/* System Monitor */
+.app-sysmon { height: 100%; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto; background: #060a06; }
+.app-sysmon::-webkit-scrollbar { width: 3px; }
+.sm-block { border: 1px solid var(--border); padding: 10px 12px; }
+.sm-block-title { font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 2px; color: var(--text-mute); margin-bottom: 10px; }
+.sm-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px solid #0d0d0d; font-size: 11px; }
+.sm-stat-row:last-child { border-bottom: none; }
+.sm-stat-key { color: var(--text-mute); }
+.sm-stat-val { color: var(--green-dim); }
+.sm-stat-val.ok  { color: var(--green); }
+.sm-stat-val.warn { color: var(--amber); }
+.sm-stat-val.err { color: var(--red); }
+.sm-bar-wrap { margin-top: 4px; }
+.sm-bar-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-mute); margin-bottom: 3px; }
+.sm-bar { height: 4px; background: var(--green-dark); margin-bottom: 6px; }
+.sm-bar-fill { height: 100%; background: var(--green); transition: width 1.2s; }
+.sm-bar-fill.amber { background: var(--amber); }
+.sm-bar-fill.red   { background: var(--red); }
+.sm-hw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sm-hw-cell { background: var(--surface2); border: 1px solid var(--border); padding: 8px 10px; }
+.sm-hw-name { font-family: 'Orbitron', monospace; font-size: 8px; color: var(--text-mute); margin-bottom: 4px; letter-spacing: 1px; }
+.sm-hw-val { font-size: 11px; color: var(--green-dim); }
+
+/* Settings */
+.app-settings { height: 100%; display: flex; font-size: 12px; }
+.set-sidebar { width: 150px; background: #080d08; border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+.set-nav-item { padding: 10px 14px; cursor: pointer; color: var(--text-mute); font-size: 11px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #0d100d; }
+.set-nav-item:hover { background: rgba(0,255,65,0.04); color: var(--text); }
+.set-nav-item.active { background: rgba(0,255,65,0.08); color: var(--green-dim); border-left: 2px solid var(--green-dim); }
+.set-body { flex: 1; overflow-y: auto; padding: 16px; background: #060a06; }
+.set-body::-webkit-scrollbar { width: 3px; }
+.set-body::-webkit-scrollbar-thumb { background: var(--border); }
+.set-section { margin-bottom: 20px; }
+.set-section-title { font-family: 'Orbitron', monospace; font-size: 10px; color: var(--green-dim); letter-spacing: 2px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.set-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #0d0d0d; gap: 12px; }
+.set-row:last-child { border-bottom: none; }
+.set-row-info { flex: 1; }
+.set-row-label { font-size: 12px; color: var(--text); margin-bottom: 2px; }
+.set-row-desc  { font-size: 10px; color: var(--text-mute); }
+.set-input { background: var(--surface); border: 1px solid var(--border); color: var(--green); font-family: inherit; font-size: 12px; padding: 5px 8px; outline: none; width: 130px; }
+.set-input:focus { border-color: var(--green-dark); }
+.set-select { background: var(--surface); border: 1px solid var(--border); color: var(--green-dim); font-family: inherit; font-size: 12px; padding: 5px 8px; outline: none; cursor: pointer; width: 130px; }
+.set-toggle { position: relative; width: 36px; height: 18px; cursor: pointer; flex-shrink: 0; }
+.set-toggle input { opacity: 0; width: 0; height: 0; }
+.set-toggle-slider { position: absolute; inset: 0; background: var(--surface2); border: 1px solid var(--border); transition: all 0.2s; }
+.set-toggle input:checked + .set-toggle-slider { background: var(--green-dark); border-color: var(--green-dim); }
+.set-toggle-slider::before { content:''; position:absolute; left:2px; top:50%; transform:translateY(-50%); width:10px; height:10px; background:var(--border2); transition:.2s; }
+.set-toggle input:checked + .set-toggle-slider::before { left:calc(100% - 13px); background:var(--green); }
+.set-btn { background: var(--green-dark); border: 1px solid var(--green-dim); color: var(--green); font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 1px; padding: 6px 14px; cursor: pointer; }
+.set-btn:hover { background: var(--green-dim); color: var(--bg); }
+.set-btn.danger { background: #2a0000; border-color: var(--red); color: var(--red); }
+.set-btn.danger:hover { background: var(--red); color: #000; }
+
+/* Wallpaper selector */
+.wallpaper-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.wp-thumb { height: 48px; border: 2px solid transparent; cursor: pointer; transition: border-color 0.15s; }
+.wp-thumb:hover { border-color: var(--green-dark); }
+.wp-thumb.active { border-color: var(--green); }
+
+/* Registry Viewer */
+.app-registry { height: 100%; display: flex; flex-direction: column; font-size: 11px; background: #060a06; }
+.rg-mini-toolbar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 5px 10px; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.rg-mini-path { flex: 1; background: #060a06; border: 1px solid var(--border); color: var(--green-dim); padding: 3px 8px; font-family: inherit; font-size: 11px; outline: none; }
+.rg-mini-body { flex: 1; display: flex; overflow: hidden; }
+.rg-mini-tree { width: 180px; border-right: 1px solid var(--border); overflow-y: auto; padding: 4px 0; background: #080d08; }
+.rg-mini-tree::-webkit-scrollbar { width: 2px; }
+.rg-mini-vals { flex: 1; overflow-y: auto; }
+.rg-mini-vals::-webkit-scrollbar { width: 2px; }
+.rg-mini-hive { padding: 5px 8px; color: var(--amber); cursor: pointer; font-size: 10px; font-family: 'Orbitron', monospace; display: flex; align-items: center; gap: 5px; }
+.rg-mini-hive:hover { background: #1a1000; }
+.rg-mini-key { padding: 4px 8px 4px 20px; color: var(--text-mute); cursor: pointer; font-size: 11px; display: flex; gap: 5px; }
+.rg-mini-key:hover { background: rgba(0,255,65,0.04); color: var(--green-dim); }
+.rg-mini-key.selected { background: rgba(0,255,65,0.07); color: var(--green); }
+.rg-mini-val-row { display: grid; grid-template-columns: 2fr 1fr 3fr; padding: 4px 10px; border-bottom: 1px solid #0a0a0a; cursor: pointer; }
+.rg-mini-val-row:hover { background: #0a0f0a; }
+.rg-mini-val-row span:first-child { color: var(--green-dim); }
+.rg-mini-val-row span:nth-child(2) { color: #333; font-size: 10px; }
+.rg-mini-val-row span:last-child { color: var(--text-mute); }
+.rg-mini-header { display: grid; grid-template-columns: 2fr 1fr 3fr; padding: 4px 10px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 10px; color: #333; position: sticky; top: 0; }
+
+/* Notification */
+.notif {
+  position: fixed; bottom: calc(var(--taskbar-h) + 8px); right: 12px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  padding: 10px 14px; font-size: 11px; z-index: 600;
+  min-width: 220px; max-width: 320px;
+  animation: notif-in 0.2s ease; pointer-events: none;
+  color: var(--text-dim);
+}
+.notif.ok   { border-left: 3px solid var(--green); }
+.notif.warn { border-left: 3px solid var(--amber); }
+.notif.err  { border-left: 3px solid var(--red); }
+@keyframes notif-in { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;} }
+
+/* Context menu */
+#ctx-menu {
+  position: fixed; background: var(--surface2); border: 1px solid var(--border2);
+  z-index: 800; min-width: 160px; display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.ctx-item { padding: 7px 16px; cursor: pointer; font-size: 11px; color: var(--text-mute); display: flex; gap: 10px; align-items: center; }
+.ctx-item:hover { background: rgba(0,255,65,0.07); color: var(--text); }
+.ctx-sep { height: 1px; background: var(--border); margin: 3px 0; }
+
+/* Scrollbars global */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<!-- Boot screen -->
+<div id="boot-screen">
+  <div id="boot-lines"></div>
+  <div id="boot-progress"><div id="boot-prog-fill"></div></div>
+</div>
+
+<!-- Login screen -->
+<div id="login-screen" class="hidden">
+  <div id="ls-time">00:00:00</div>
+  <div id="ls-date">--</div>
+  <div class="ls-bars" style="margin-top:10px">
+    <div class="ls-bar"></div><div class="ls-bar"></div><div class="ls-bar"></div>
+    <div class="ls-bar"></div><div class="ls-bar"></div>
+  </div>
+  <div class="ls-logo">TSCPP-OS</div>
+  <div class="ls-user-icon">👤</div>
+  <div class="ls-username" id="ls-username">AGENT</div>
+  <div class="ls-input-wrap" id="ls-wrap">
+    <label>KEY</label>
+    <input type="password" id="login-input" autocomplete="off" placeholder="enter access key">
+  </div>
+  <div class="ls-hint">TSCPP-OS v5.0 · <span id="ls-hostname">LOCAL</span></div>
+</div>
+
+<!-- Desktop -->
+<div id="desktop" class="hidden">
+  <div id="desktop-grid"></div>
+  <div id="desktop-icons">
+    <div class="desk-icon" ondblclick="openApp('terminal')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">⬛</div>
+      <div class="desk-icon-label">Terminal</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('filemanager')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">📁</div>
+      <div class="desk-icon-label">Files</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('editor')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">📝</div>
+      <div class="desk-icon-label">Text Editor</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('sysmon')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">📊</div>
+      <div class="desk-icon-label">Sys Monitor</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('registry')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">🗂</div>
+      <div class="desk-icon-label">Registry</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('settings')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">⚙</div>
+      <div class="desk-icon-label">Settings</div>
+    </div>
+  </div>
+</div>
+
+<!-- Taskbar -->
+<div id="taskbar" style="display:none">
+  <div id="start-btn" onclick="toggleStartMenu()">
+    <span>⬡</span> TSCPP
+  </div>
+  <div id="tb-apps"></div>
+  <div id="tb-tray">
+    <span class="tray-item err" id="tray-net" title="Network" onclick="openApp('sysmon')">◉ OFFLINE</span>
+    <span class="tray-item" id="tray-risk" title="Trace Risk">🔺 0%</span>
+    <span class="tray-item ok" id="tray-health" title="System Health" onclick="openApp('sysmon')">✦ OK</span>
+    <div id="tb-clock">00:00<br>--/--</div>
+  </div>
+</div>
+
+<!-- Start Menu -->
+<div id="start-menu">
+  <div class="sm-header">
+    <div class="sm-avatar">👤</div>
+    <div>
+      <div class="sm-user" id="sm-username">AGENT</div>
+      <div class="sm-role" id="sm-role">Standard Access</div>
+    </div>
+  </div>
+  <div class="sm-search"><input type="text" id="sm-search-input" placeholder="Search apps..." oninput="smSearch(this.value)"></div>
+  <div class="sm-section">
+    <div class="sm-section-title">APPLICATIONS</div>
+    <div class="sm-app-grid" id="sm-app-grid">
+      <div class="sm-app" onclick="openApp('terminal');closeStartMenu()"><div class="sm-app-icon">⬛</div><div class="sm-app-name">Terminal</div></div>
+      <div class="sm-app" onclick="openApp('filemanager');closeStartMenu()"><div class="sm-app-icon">📁</div><div class="sm-app-name">Files</div></div>
+      <div class="sm-app" onclick="openApp('editor');closeStartMenu()"><div class="sm-app-icon">📝</div><div class="sm-app-name">Text Editor</div></div>
+      <div class="sm-app" onclick="openApp('sysmon');closeStartMenu()"><div class="sm-app-icon">📊</div><div class="sm-app-name">Sys Monitor</div></div>
+      <div class="sm-app" onclick="openApp('registry');closeStartMenu()"><div class="sm-app-icon">🗂</div><div class="sm-app-name">Registry</div></div>
+      <div class="sm-app" onclick="openApp('settings');closeStartMenu()"><div class="sm-app-icon">⚙</div><div class="sm-app-name">Settings</div></div>
+    </div>
+  </div>
+  <div class="sm-power">
+    <div class="sm-power-btn" onclick="location.reload()">↺ REBOOT</div>
+    <div class="sm-power-btn" onclick="doLogout()">⏻ LOCK</div>
+    <div class="sm-power-btn" onclick="if(confirm('Open TSCPP Terminal app?'))window.open('TSCPP_Terminal.html')">⬛ TERMINAL</div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="openApp('terminal');hideCtx()">⬛ Open Terminal</div>
+  <div class="ctx-item" onclick="openApp('filemanager');hideCtx()">📁 Open Files</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="openApp('settings');hideCtx()">⚙ Settings</div>
+  <div class="ctx-item" onclick="cycleWallpaper();hideCtx()">🖼 Change Wallpaper</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="refreshDesktop();hideCtx()">↺ Refresh</div>
+</div>
+
+<script>
+const LS = localStorage;
+const getLS  = (k, fb='null') => { try { return JSON.parse(LS.getItem(k) || fb); } catch(e) { return null; } };
+const setLS  = (k, v) => LS.setItem(k, JSON.stringify(v));
+
+/* ── SHARED STATE (mirrors terminal's localStorage) ─────────────────────── */
+let files       = getLS('tscpp_files') || {};
+let sysHealth   = getLS('tscpp_health') || {};
+let registry    = getLS('tscpp_registry') || {};
+let hardware    = getLS('tscpp_hardware');
+let software    = getLS('tscpp_software') || [];
+let dirs        = getLS('tscpp_dirs') || ['/','home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
+let fileLocs    = getLS('tscpp_locs') || {};
+let masterKey   = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
+let rootKey     = LS.getItem('tscpp_root_key')   || 'Secret@Agent983';
+let isAdmin     = false;
+
+function reloadShared() {
+  files     = getLS('tscpp_files') || {};
+  sysHealth = getLS('tscpp_health') || {};
+  registry  = getLS('tscpp_registry') || {};
+  hardware  = getLS('tscpp_hardware');
+  software  = getLS('tscpp_software') || [];
+  dirs      = getLS('tscpp_dirs') || ['/','home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
+  fileLocs  = getLS('tscpp_locs') || {};
+  masterKey = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
+  rootKey   = LS.getItem('tscpp_root_key')   || 'Secret@Agent983';
+}
+
+const HW_CATALOG = {
+  cpu:[
+    {id:'cel-g6900',name:'Intel Celeron G6900'},{id:'i3-12100',name:'Intel Core i3-12100'},
+    {id:'r3-4100',name:'AMD Ryzen 3 4100'},{id:'i5-12600k',name:'Intel Core i5-12600K'},
+    {id:'r5-5600x',name:'AMD Ryzen 5 5600X'},{id:'i7-13700k',name:'Intel Core i7-13700K'},
+    {id:'r7-7700x',name:'AMD Ryzen 7 7700X'},{id:'i9-13900k',name:'Intel Core i9-13900K'},
+    {id:'r9-7950x',name:'AMD Ryzen 9 7950X'},{id:'xeon-w2295',name:'Intel Xeon W-2295'},
+  ],
+  gpu:[
+    {id:'uhd730',name:'Intel UHD 730'},{id:'gtx1650',name:'NVIDIA GTX 1650'},
+    {id:'rx6500xt',name:'AMD RX 6500 XT'},{id:'rtx3060',name:'NVIDIA RTX 3060'},
+    {id:'rx6600',name:'AMD RX 6600'},{id:'rtx3070ti',name:'NVIDIA RTX 3070 Ti'},
+    {id:'rx6800xt',name:'AMD RX 6800 XT'},{id:'rtx4080',name:'NVIDIA RTX 4080'},
+    {id:'rx7900xtx',name:'AMD RX 7900 XTX'},{id:'rtx4090',name:'NVIDIA RTX 4090'},
+  ],
+  ram:[
+    {id:'4gb-ddr4',name:'4GB DDR4-2400'},{id:'8gb-ddr4',name:'8GB DDR4-3200'},
+    {id:'16gb-ddr4',name:'16GB DDR4-3600'},{id:'32gb-ddr5',name:'32GB DDR5-4800'},
+    {id:'64gb-ddr5',name:'64GB DDR5-6000'},{id:'128gb-ecc',name:'128GB DDR5 ECC'},
+  ],
+};
+
+function hwName(type, id) {
+  return HW_CATALOG[type]?.find(x=>x.id===id)?.name || id || 'Unknown';
+}
+
+function regGet(hive, key, name) {
+  return registry?.[hive]?.[key]?.[name]?.value ?? null;
+}
+
+function getUserName() {
+  return regGet('HKEY_AGENT','Profile','Username') || 'AGENT';
+}
+
+/* ── WALLPAPERS ──────────────────────────────────────────────────────────── */
+const WALLPAPERS = [
+  'radial-gradient(ellipse at 20% 50%, #0a1f0a 0%, #060a06 50%, #050808 100%)',
+  'radial-gradient(ellipse at 80% 20%, #001a1a 0%, #060a0a 60%, #060606 100%)',
+  'radial-gradient(ellipse at 50% 80%, #1a0a00 0%, #0a0600 50%, #060506 100%)',
+  'linear-gradient(135deg, #060a06 0%, #0a0f14 50%, #060a06 100%)',
+  'radial-gradient(circle at 30% 30%, #0a0012 0%, #060006 40%, #060606 100%)',
+  'linear-gradient(180deg, #060a06 0%, #08080a 50%, #060806 100%)',
+];
+let wpIdx = parseInt(LS.getItem('tscpp_wp') || '0');
+function applyWallpaper() {
+  document.getElementById('desktop').style.background = WALLPAPERS[wpIdx % WALLPAPERS.length];
+}
+function cycleWallpaper() {
+  wpIdx = (wpIdx + 1) % WALLPAPERS.length;
+  LS.setItem('tscpp_wp', wpIdx);
+  applyWallpaper();
+  notify('Wallpaper changed', 'ok');
+}
+
+/* ── BOOT ────────────────────────────────────────────────────────────────── */
+async function runBoot() {
+  const lines = document.getElementById('boot-lines');
+  const fill  = document.getElementById('boot-prog-fill');
+  const items = [
+    ['>> TSCPP BIOS v5.0 — POST STARTING...',''],
+    ['>> CPU........ OK','boot-ok'],
+    ['>> RAM........ OK','boot-ok'],
+    ['>> DISK....... OK','boot-ok'],
+    ['>> GPU........ OK','boot-ok'],
+    ['>> DISPLAY.... OK','boot-ok'],
+    ['>> NETWORK.... '+( masterKey ? 'OK' : 'WARN'),'boot-ok'],
+    ['>> LOADING TSCPP-OS DESKTOP...','boot-ok'],
+  ];
+  for (let i=0;i<items.length;i++) {
+    await sleep(80 + Math.random()*60);
+    const d = document.createElement('div');
+    d.className = 'boot-line ' + items[i][1];
+    d.textContent = items[i][0];
+    lines.appendChild(d);
+    fill.style.width = ((i+1)/items.length*100) + '%';
+  }
+  await sleep(400);
+  document.getElementById('boot-screen').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-input').focus();
+}
+
+/* ── LOGIN ───────────────────────────────────────────────────────────────── */
+document.getElementById('login-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (val === masterKey) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('desktop').classList.remove('hidden');
+    document.getElementById('taskbar').style.display = 'flex';
+    applyWallpaper();
+    startDesktop();
+    notify('Welcome back, ' + getUserName(), 'ok');
+  } else {
+    const wrap = document.getElementById('ls-wrap');
+    wrap.classList.add('shake');
+    setTimeout(()=>wrap.classList.remove('shake'), 500);
+    e.target.value = '';
+  }
+});
+
+function doLogout() {
+  closeStartMenu();
+  windows.forEach(w => { if(w.el) w.el.remove(); });
+  windows = [];
+  document.getElementById('tb-apps').innerHTML = '';
+  document.getElementById('desktop').classList.add('hidden');
+  document.getElementById('taskbar').style.display = 'none';
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-input').value = '';
+  document.getElementById('login-input').focus();
+}
+
+/* ── WINDOW MANAGER ──────────────────────────────────────────────────────── */
+let windows = [];
+let winZBase = 10;
+let dragging = null, resizing = null;
+
+function createWindow(opts) {
+  const { id, title, icon, content, w=600, h=420, x, y } = opts;
+  const existing = windows.find(ww => ww.id === id);
+  if (existing) { focusWindow(existing); if (existing.minimized) unminimize(existing); return existing; }
+
+  const el = document.createElement('div');
+  el.className = 'window';
+  el.style.width  = w + 'px';
+  el.style.height = h + 'px';
+  el.style.left   = (x ?? Math.max(20, Math.random()*(window.innerWidth - w - 40))) + 'px';
+  el.style.top    = (y ?? Math.max(0, Math.random()*(window.innerHeight - h - 80))) + 'px';
+  el.innerHTML = `
+    <div class="win-titlebar" id="tb-${id}">
+      <span class="win-icon">${icon}</span>
+      <span class="win-title">${title.toUpperCase()}</span>
+      <div class="win-controls">
+        <div class="win-btn minimize" onclick="minimizeWin('${id}')">—</div>
+        <div class="win-btn maximize" onclick="maximizeWin('${id}')">□</div>
+        <div class="win-btn close"    onclick="closeWin('${id}')">✕</div>
+      </div>
+    </div>
+    <div class="win-body">${content}</div>
+    <div class="win-resize" id="rs-${id}"></div>`;
+  document.getElementById('desktop').appendChild(el);
+
+  const winObj = { id, title, icon, el, minimized: false, maximized: false, prevRect: null };
+  windows.push(winObj);
+  focusWindow(winObj);
+  addTaskbarBtn(winObj);
+  setupDrag(el, document.getElementById('tb-'+id), winObj);
+  setupResize(el, document.getElementById('rs-'+id), winObj);
+  return winObj;
+}
+
+function focusWindow(wobj) {
+  windows.forEach(w => { w.el?.classList.remove('focused'); });
+  wobj.el?.classList.add('focused');
+  wobj.el.style.zIndex = ++winZBase;
+  document.querySelectorAll('.tb-app-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tbBtn-'+wobj.id)?.classList.add('active');
+}
+
+function closeWin(id) {
+  const idx = windows.findIndex(w=>w.id===id);
+  if (idx < 0) return;
+  windows[idx].el?.remove();
+  windows.splice(idx,1);
+  document.getElementById('tbBtn-'+id)?.remove();
+}
+
+function minimizeWin(id) {
+  const w = windows.find(ww=>ww.id===id);
+  if (!w) return;
+  w.minimized = true;
+  w.el.classList.add('minimized');
+  document.getElementById('tbBtn-'+id)?.classList.add('minimized');
+}
+
+function unminimize(wobj) {
+  wobj.minimized = false;
+  wobj.el.classList.remove('minimized');
+  document.getElementById('tbBtn-'+wobj.id)?.classList.remove('minimized');
+  focusWindow(wobj);
+}
+
+function maximizeWin(id) {
+  const w = windows.find(ww=>ww.id===id);
+  if (!w) return;
+  if (w.maximized) {
+    if (w.prevRect) { const r=w.prevRect; Object.assign(w.el.style,{left:r.l,top:r.t,width:r.w,height:r.h}); }
+    w.el.classList.remove('maximized'); w.maximized = false;
+  } else {
+    w.prevRect = { l:w.el.style.left, t:w.el.style.top, w:w.el.style.width, h:w.el.style.height };
+    w.el.classList.add('maximized'); w.maximized = true;
+  }
+}
+
+function addTaskbarBtn(wobj) {
+  const btn = document.createElement('div');
+  btn.className = 'tb-app-btn active';
+  btn.id = 'tbBtn-' + wobj.id;
+  btn.innerHTML = `<span class="tb-app-icon">${wobj.icon}</span> ${wobj.title}`;
+  btn.onclick = () => {
+    if (wobj.minimized) unminimize(wobj);
+    else if (wobj.el.classList.contains('focused')) minimizeWin(wobj.id);
+    else focusWindow(wobj);
+  };
+  document.getElementById('tb-apps').appendChild(btn);
+}
+
+function setupDrag(winEl, handle, wobj) {
+  handle.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('win-btn')) return;
+    if (wobj.maximized) return;
+    focusWindow(wobj);
+    const startX = e.clientX - winEl.offsetLeft;
+    const startY = e.clientY - winEl.offsetTop;
+    const onMove = mv => {
+      winEl.style.left = Math.max(0, Math.min(window.innerWidth-60,  mv.clientX - startX)) + 'px';
+      winEl.style.top  = Math.max(0, Math.min(window.innerHeight-80, mv.clientY - startY)) + 'px';
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+}
+
+function setupResize(winEl, handle, wobj) {
+  handle.addEventListener('mousedown', e => {
+    if (wobj.maximized) return;
+    const startW = winEl.offsetWidth, startH = winEl.offsetHeight, startX = e.clientX, startY = e.clientY;
+    const onMove = mv => {
+      winEl.style.width  = Math.max(320, startW + mv.clientX - startX) + 'px';
+      winEl.style.height = Math.max(200, startH + mv.clientY - startY) + 'px';
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+}
+
+document.getElementById('desktop').addEventListener('mousedown', e => {
+  if (e.target === document.getElementById('desktop') || e.target === document.getElementById('desktop-grid')) {
+    document.querySelectorAll('.desk-icon').forEach(i=>i.classList.remove('selected'));
+    document.querySelectorAll('.window').forEach(w=>w.classList.remove('focused'));
+    document.querySelectorAll('.tb-app-btn').forEach(b=>b.classList.remove('active'));
+    hideCtx();
+  }
+});
+
+/* ── APPS ────────────────────────────────────────────────────────────────── */
+const APP_DEFS = {
+  terminal:    { title:'Terminal',       icon:'⬛', w:700, h:450, builder: buildTerminal    },
+  filemanager: { title:'File Manager',   icon:'📁', w:660, h:440, builder: buildFileManager },
+  editor:      { title:'Text Editor',    icon:'📝', w:600, h:420, builder: buildEditor      },
+  sysmon:      { title:'System Monitor', icon:'📊', w:500, h:480, builder: buildSysMon      },
+  registry:    { title:'Registry',       icon:'🗂',  w:680, h:480, builder: buildRegistry  },
+  settings:    { title:'Settings',       icon:'⚙',  w:580, h:460, builder: buildSettings   },
+};
+
+function openApp(id) {
+  reloadShared();
+  const def = APP_DEFS[id];
+  if (!def) return;
+  const content = def.builder();
+  createWindow({ id, title: def.title, icon: def.icon, content, w: def.w, h: def.h });
+}
+
+/* ── TERMINAL APP ────────────────────────────────────────────────────────── */
+let termHistory = getLS('tscpp_history') || [];
+let termHistIdx = termHistory.length;
+let termCwd = getLS('tscpp_state')?.cwd || '/home/agent';
+let termIsAdmin = false;
+
+function buildTerminal() {
+  return `<div class="app-terminal" id="term-app">
+    <div class="term-output" id="term-out"></div>
+    <div class="term-input-bar">
+      <span class="term-prompt" id="term-prompt">AGENT@LOCAL ~$</span>
+      <input type="text" class="term-cmd" id="term-in" autocomplete="off" placeholder="command...">
+    </div>
+  </div>`;
+}
+
+function initTerminal() {
+  const el = document.getElementById('term-in');
+  if (!el || el.dataset.init) return;
+  el.dataset.init = '1';
+  termPrint('TSCPP Terminal — Desktop Edition', 'sys');
+  termPrint('Type help for commands. Some features require the full terminal app.', 'dim');
+  termPrint('', '');
+  el.addEventListener('keydown', async e => {
+    if (e.key === 'ArrowUp' && termHistIdx > 0) { termHistIdx--; el.value = termHistory[termHistIdx]; }
+    if (e.key === 'ArrowDown') { termHistIdx < termHistory.length-1 ? termHistIdx++ : (termHistIdx=termHistory.length); el.value = termHistory[termHistIdx]||''; }
+    if (e.key !== 'Enter') return;
+    const cmd = el.value.trim(); el.value = '';
+    if (!cmd) return;
+    termHistory.push(cmd); termHistIdx = termHistory.length;
+    LS.setItem('tscpp_history', JSON.stringify(termHistory.slice(-200)));
+    await termRun(cmd);
+  });
+  el.focus();
+}
+
+function termPrint(txt, cls='') {
+  const out = document.getElementById('term-out');
+  if (!out) return;
+  const d = document.createElement('div');
+  d.className = 'line' + (cls?' t-'+cls:'');
+  d.style.cssText='line-height:1.6;white-space:pre-wrap;word-break:break-all;font-size:12px;';
+  d.textContent = txt;
+  out.appendChild(d);
+  out.scrollTop = out.scrollHeight;
+}
+
+function termPromptText() {
+  const uname = regGet('HKEY_AGENT','Profile','Username') || 'AGENT';
+  const short = termCwd.replace('/home/agent','~');
+  return `${termIsAdmin?'ROOT':uname}@LOCAL ${short}${termIsAdmin?':#':':~$'}`;
+}
+
+function termUpdatePrompt() {
+  const p = document.getElementById('term-prompt');
+  if (p) { p.textContent = termPromptText(); p.className = 'term-prompt' + (termIsAdmin?' root':''); }
+}
+
+const SYSFILES = {
+  'kernel.cfg':    'KERNEL_VER=6.5.0-tscpp\nSCHED=CFS\nPREEMPT=FULL\nHZ=1000\nNOCADAPT=0',
+  'firewall.rules':'POLICY=DROP\nALLOW 22/tcp\nALLOW 443/tcp\nALLOW 53/udp\nDENY ALL',
+  'auth.db':       'root:$2b$12$TSCPP_HASH_A1B2C3\nagent:$2b$12$TSCPP_HASH_D4E5F6\n[EOF]',
+  'network.conf':  'IFACE=eth0\nGATEWAY=10.0.0.1\nDNS=8.8.8.8\nMTU=1500\nDUPLEX=FULL',
+  'enc_keys.dat':  'AES256_KEY=0xDEADBEEFCAFEBABE\nIV=0xFEEDFACE',
+  'boot.cfg':      'BOOTLOADER=GRUB2\nTIMEOUT=3\nDEFAULT=tscpp-os\nSECURE_BOOT=ON',
+  'sys.log':       '[BOOT] System started\n[INFO] All modules loaded',
+  'hosts':         '127.0.0.1 localhost\n10.0.0.1 gateway',
+  'cron.dat':      '*/5 * * * * /usr/bin/heartbeat',
+  'passwd':        'root:x:0:0:root\nagent:x:1001:1001',
+};
+
+const ITERM_CMDS = {
+  help: () => {
+    termPrint('AVAILABLE COMMANDS:', 'sys');
+    [['ls [path]','List files'],['cat [file]','Read file'],['cd [path]','Change directory'],
+     ['pwd','Print directory'],['write [f] [txt]','Write file'],['erase [f]','Delete file'],
+     ['whoami','Identity'],['sysinfo','System info'],['syshealth','Health check'],
+     ['clear','Clear screen'],['login','Become ROOT'],['logout','End ROOT session'],
+     ['reg query [path]','Query registry'],['reg set [path] [val]','Set registry value'],
+    ].forEach(([c,d]) => termPrint('  ' + c.padEnd(26) + d, ''));
+    termPrint('  Full terminal: TSCPP_Terminal.html', 'dim');
+  },
+  clear: () => { const o=document.getElementById('term-out'); if(o) o.innerHTML=''; },
+  pwd:   () => termPrint(termCwd, 'sys'),
+  whoami:() => termPrint(`UID: ${termIsAdmin?'0 (ROOT)':'1001 (AGENT)'} | CWD: ${termCwd}`, 'sys'),
+  sysinfo:() => {
+    reloadShared();
+    const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu)?.name : 'Unknown';
+    const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu)?.name : 'Unknown';
+    const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram)?.name : 'Unknown';
+    ['── TSCPP-OS v5.0 ──','CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
+     'NODE : LOCAL','Files: '+Object.keys(files).length+' stored',
+    ].forEach(l => termPrint('  '+l,'sys'));
+  },
+  syshealth:() => {
+    reloadShared();
+    const h = getLS('tscpp_health') || {};
+    Object.entries(h).forEach(([k,v]) => termPrint(`  ${k.padEnd(14)} ${v?'[ OK ]':'[ DAMAGED ]'}`, v?'sys':'err'));
+    if (!Object.keys(h).length) termPrint('  Health data not found. Run terminal for full diagnostic.', 'dim');
+  },
+  logout:() => { if(!termIsAdmin){termPrint('Not in ROOT session.','err');return;} termIsAdmin=false; termUpdatePrompt(); termPrint('ROOT session ended.','sys'); },
+};
+
+async function termRun(raw) {
+  reloadShared();
+  const args = raw.split(/\s+/);
+  const cmd  = args[0].toLowerCase();
+  termPrint(termPromptText() + ' ' + raw, 'echo');
+
+  if (cmd === 'login') {
+    termPrint('Enter root key:', 'sys');
+    const input = document.getElementById('term-in');
+    input.type = 'password';
+    await new Promise(res => {
+      const handler = e => {
+        if (e.key !== 'Enter') return;
+        const v = input.value.trim(); input.value = ''; input.type = 'text';
+        if (v === rootKey) { termIsAdmin=true; termUpdatePrompt(); termPrint('ROOT ACCESS GRANTED.','admin'); }
+        else termPrint('AUTH_ERROR: Incorrect key.','err');
+        input.removeEventListener('keydown', handler); res();
+      };
+      input.addEventListener('keydown', handler);
+    });
+    return;
+  }
+
+  if (cmd === 'cd') {
+    const raw_path = args[1] || '/home/agent';
+    const target = raw_path.startsWith('/') ? raw_path : (termCwd + '/' + raw_path).replace(/\/+/g,'/');
+    const clean = target.replace(/[^/]+\/\.\./g,'').replace(/\/\//g,'/') || '/';
+    if (dirs.includes(clean)) { termCwd = clean; termUpdatePrompt(); }
+    else termPrint(`cd: ${args[1]}: No such directory`, 'err');
+    return;
+  }
+
+  if (cmd === 'ls') {
+    const dir = args[1] ? (args[1].startsWith('/')?args[1]:termCwd+'/'+args[1]) : termCwd;
+    const dfiles = Object.keys(files).filter(f => (fileLocs[f]||'/home/agent') === dir);
+    const sdirs  = dirs.filter(d => { const p=d.substring(0,d.lastIndexOf('/'))||'/'; return p===dir && d!==dir; });
+    if (!sdirs.length && !dfiles.length) { termPrint('(empty)','dim'); return; }
+    sdirs.forEach(d => termPrint('  drwxr-xr-x  '+d.split('/').pop()+'/','sys'));
+    dfiles.forEach(f => termPrint('  -rw-r--r--  '+String(files[f]?.length||0).padStart(6)+'B   '+f));
+    return;
+  }
+
+  if (cmd === 'cat') {
+    if (!args[1]) { termPrint('Usage: cat [file]','err'); return; }
+    const fname = args[1].includes('/') ? args[1].split('/').pop() : args[1];
+    const content = files[fname] || SYSFILES[fname];
+    if (content) { termPrint('─'.repeat(40),'sep'); content.split('\n').forEach(l=>termPrint('  '+l)); termPrint('─'.repeat(40),'sep'); }
+    else termPrint(`cat: ${fname}: No such file`,'err');
+    return;
+  }
+
+  if (cmd === 'write') {
+    if (!termIsAdmin && (args[1] in SYSFILES)) { termPrint('ERR: ROOT required for system files.','err'); return; }
+    if (args.length < 3) { termPrint('Usage: write [file] [text]','err'); return; }
+    files[args[1]] = args.slice(2).join(' ');
+    fileLocs[args[1]] = termCwd;
+    LS.setItem('tscpp_files', JSON.stringify(files));
+    LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+    termPrint(`Saved: ${args[1]}`, 'success');
+    return;
+  }
+
+  if (cmd === 'erase') {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    if (!args[1]) { termPrint('Usage: erase [file]','err'); return; }
+    const fname = args[1].includes('/') ? args[1].split('/').pop() : args[1];
+    if (files[fname]) { delete files[fname]; delete fileLocs[fname]; LS.setItem('tscpp_files',JSON.stringify(files)); LS.setItem('tscpp_locs',JSON.stringify(fileLocs)); termPrint(`Erased: ${fname}`,'admin'); }
+    else termPrint(`erase: ${fname}: No such file`,'err');
+    return;
+  }
+
+  if (cmd === 'reg') {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    const sub = (args[1]||'').toLowerCase();
+    if (sub === 'query' && args[2]) {
+      const parts = args[2].split('\\');
+      if (parts.length === 2) {
+        const vals = registry?.[parts[0]]?.[parts[1]];
+        if (!vals) { termPrint('Key not found.','err'); return; }
+        Object.entries(vals).forEach(([n,e]) => termPrint(`  ${n.padEnd(22)} ${e.type.padEnd(12)} ${String(e.value)}`,'sys'));
+      } else if (parts.length === 3) {
+        const entry = registry?.[parts[0]]?.[parts[1]]?.[parts[2]];
+        entry ? termPrint(`${parts[2]}  ${entry.type}  ${entry.value}`,'sys') : termPrint('Value not found.','err');
+      }
+    } else if (sub === 'set' && args.length >= 4) {
+      const parts = args[2].split('\\');
+      if (parts.length !== 3) { termPrint('Path must be HIVE\\Key\\Name','err'); return; }
+      const [h,k,n] = parts;
+      if (!registry?.[h]?.[k]?.[n]) { termPrint('Value not found.','err'); return; }
+      let val = args.slice(3).join(' ');
+      if (registry[h][k][n].type==='REG_BOOL') val = val.toLowerCase()==='true'||val==='1';
+      else if (registry[h][k][n].type==='REG_DWORD') { val=parseInt(val); if(isNaN(val)){termPrint('REG_DWORD must be integer','err');return;} }
+      registry[h][k][n].value = val;
+      LS.setItem('tscpp_registry', JSON.stringify(registry));
+      termPrint(`SET ${args[2]} = ${val}`,'success');
+    } else termPrint('Usage: reg query [HIVE\\Key] | reg set [HIVE\\Key\\Name] [value]','err');
+    return;
+  }
+
+  if (ITERM_CMDS[cmd]) { ITERM_CMDS[cmd](); return; }
+  termPrint(`${cmd}: command not found. Type help.`, 'err');
+}
+
+/* ── FILE MANAGER ────────────────────────────────────────────────────────── */
+let fmCwd = '/home/agent';
+let fmSelected = null;
+
+function buildFileManager() {
+  const dirItems = dirs.map(d =>
+    `<div class="fm-dir-item${d===fmCwd?' active':''}" onclick="fmNav('${d}')">${d==='/'?'/ root':d.replace('/home/agent','~ home')}</div>`
+  ).join('');
+
+  return `<div class="app-filemanager" id="fm-app">
+    <div class="fm-toolbar">
+      <button class="fm-nav-btn" onclick="fmNav('..')">← Back</button>
+      <button class="fm-nav-btn" onclick="fmRefresh()">↺</button>
+      <input class="fm-path" id="fm-path-input" value="${fmCwd}" onkeydown="if(event.key==='Enter')fmNav(this.value)">
+      <button class="fm-nav-btn" onclick="fmNewFile()">+ New</button>
+    </div>
+    <div class="fm-body">
+      <div class="fm-sidebar" id="fm-sidebar">${dirItems}</div>
+      <div class="fm-main" id="fm-main"></div>
+    </div>
+    <div class="fm-statusbar" id="fm-status">Ready</div>
+  </div>`;
+}
+
+function fmRender() {
+  reloadShared();
+  const main = document.getElementById('fm-main');
+  const path = document.getElementById('fm-path-input');
+  const status = document.getElementById('fm-status');
+  if (!main) return;
+  path && (path.value = fmCwd);
+
+  const subDirs = dirs.filter(d => {
+    if (d === fmCwd) return false;
+    const parent = d.substring(0, d.lastIndexOf('/')) || '/';
+    return parent === fmCwd;
+  });
+  const dfiles = Object.keys(files).filter(f => (fileLocs[f]||'/home/agent') === fmCwd);
+
+  const sidebar = document.getElementById('fm-sidebar');
+  if (sidebar) {
+    sidebar.innerHTML = dirs.map(d =>
+      `<div class="fm-dir-item${d===fmCwd?' active':''}" onclick="fmNav('${d}')" title="${d}">${'📁 '}${d==='/'?'/':d.split('/').pop()||d}</div>`
+    ).join('');
+  }
+
+  let html = '<div class="fm-file-grid">';
+  subDirs.forEach(d => {
+    const name = d.split('/').pop() || d;
+    html += `<div class="fm-file-item" ondblclick="fmNav('${d}')" title="${d}">
+      <div class="fm-file-icon">📁</div>
+      <div class="fm-file-name">${name}</div>
+      <div class="fm-file-size">DIR</div>
+    </div>`;
+  });
+  dfiles.forEach(f => {
+    const icon = f.endsWith('.txt')||f.endsWith('.md')?'📄':f.endsWith('.cfg')||f.endsWith('.conf')?'⚙':f.endsWith('.log')?'📋':f.endsWith('.dat')||f.endsWith('.db')?'🗄':'📄';
+    const isSys = f in SYSFILES;
+    html += `<div class="fm-file-item${fmSelected===f?' selected':''}" onclick="fmSelect('${f}')" ondblclick="fmOpenFile('${f}')" title="${f}">
+      <div class="fm-file-icon">${icon}</div>
+      <div class="fm-file-name" style="${isSys?'color:var(--amber)':''}">${f}</div>
+      <div class="fm-file-size">${files[f]?.length||0}B</div>
+    </div>`;
+  });
+  html += '</div>';
+  main.innerHTML = html;
+  if (status) status.textContent = `${fmCwd} — ${subDirs.length} dirs, ${dfiles.length} files`;
+}
+
+function fmNav(path) {
+  if (path === '..') {
+    fmCwd = fmCwd === '/' ? '/' : (fmCwd.substring(0, fmCwd.lastIndexOf('/')) || '/');
+  } else if (path.startsWith('/')) {
+    fmCwd = path;
+  } else {
+    fmCwd = (fmCwd + '/' + path).replace(/\/+/g, '/');
+  }
+  if (!dirs.includes(fmCwd)) fmCwd = '/home/agent';
+  fmSelected = null;
+  fmRender();
+}
+
+function fmRefresh() { reloadShared(); fmRender(); }
+
+function fmSelect(f) {
+  fmSelected = f;
+  fmRender();
+  const status = document.getElementById('fm-status');
+  if (status && files[f]) status.textContent = `${f} — ${files[f].length}B — ${fileLocs[f]||'/home/agent'}`;
+}
+
+function fmOpenFile(f) {
+  openApp('editor');
+  setTimeout(() => { editorLoadFile(f); }, 100);
+}
+
+function fmNewFile() {
+  const name = prompt('New file name (e.g. notes.txt):');
+  if (!name || !name.trim()) return;
+  files[name.trim()] = '';
+  fileLocs[name.trim()] = fmCwd;
+  LS.setItem('tscpp_files', JSON.stringify(files));
+  LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+  fmRender();
+  fmOpenFile(name.trim());
+}
+
+/* ── TEXT EDITOR ─────────────────────────────────────────────────────────── */
+let editorFile = null;
+let editorOriginal = '';
+
+function buildEditor() {
+  return `<div class="app-editor">
+    <div class="ed-toolbar">
+      <button class="ed-btn" onclick="editorSave()">SAVE</button>
+      <button class="ed-btn" onclick="editorNew()">NEW</button>
+      <button class="ed-btn" onclick="editorOpen()">OPEN</button>
+      <button class="ed-btn" onclick="editorClose()">CLOSE FILE</button>
+      <span class="ed-filename" id="ed-filename">untitled</span>
+      <span class="ed-modified" id="ed-modified"></span>
+    </div>
+    <textarea class="ed-body" id="ed-body" spellcheck="false" placeholder="Start typing or open a file..."></textarea>
+    <div class="ed-statusbar">
+      <span id="ed-line">Ln 1</span>
+      <span id="ed-col">Col 1</span>
+      <span id="ed-chars">0 chars</span>
+      <span id="ed-type">PLAIN</span>
+    </div>
+  </div>`;
+}
+
+function editorLoadFile(name) {
+  reloadShared();
+  const ta = document.getElementById('ed-body');
+  const fn = document.getElementById('ed-filename');
+  const mod = document.getElementById('ed-modified');
+  if (!ta) return;
+  editorFile = name;
+  editorOriginal = files[name] || '';
+  ta.value = editorOriginal;
+  if (fn) fn.textContent = name;
+  if (mod) mod.textContent = '';
+  editorUpdateStatus();
+}
+
+function editorSave() {
+  const ta = document.getElementById('ed-body');
+  const mod = document.getElementById('ed-modified');
+  if (!ta || !editorFile) { notify('No file open', 'warn'); return; }
+  files[editorFile] = ta.value;
+  fileLocs[editorFile] = fileLocs[editorFile] || '/home/agent';
+  LS.setItem('tscpp_files', JSON.stringify(files));
+  LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+  editorOriginal = ta.value;
+  if (mod) mod.textContent = '';
+  notify(`Saved: ${editorFile}`, 'ok');
+}
+
+function editorNew() {
+  const name = prompt('New file name:');
+  if (!name) return;
+  editorFile = name;
+  editorOriginal = '';
+  const ta = document.getElementById('ed-body');
+  const fn = document.getElementById('ed-filename');
+  if (ta) ta.value = '';
+  if (fn) fn.textContent = name;
+}
+
+function editorOpen() {
+  reloadShared();
+  const names = Object.keys(files);
+  if (!names.length) { notify('No files found', 'warn'); return; }
+  const choice = prompt('Open file:\n' + names.join('\n'));
+  if (choice && files[choice] !== undefined) editorLoadFile(choice);
+  else if (choice) notify('File not found', 'err');
+}
+
+function editorClose() {
+  const ta = document.getElementById('ed-body');
+  const fn = document.getElementById('ed-filename');
+  const mod = document.getElementById('ed-modified');
+  editorFile = null;
+  if (ta) ta.value = '';
+  if (fn) fn.textContent = 'untitled';
+  if (mod) mod.textContent = '';
+}
+
+function editorUpdateStatus() {
+  const ta = document.getElementById('ed-body');
+  if (!ta) return;
+  const txt = ta.value.substring(0, ta.selectionStart);
+  const lines = txt.split('\n');
+  const el = document.getElementById('ed-line');
+  const ec = document.getElementById('ed-col');
+  const ech = document.getElementById('ed-chars');
+  const et = document.getElementById('ed-type');
+  if (el) el.textContent = 'Ln ' + lines.length;
+  if (ec) ec.textContent = 'Col ' + lines[lines.length-1].length;
+  if (ech) ech.textContent = ta.value.length + ' chars';
+  if (et && editorFile) {
+    const ext = editorFile.split('.').pop();
+    et.textContent = {txt:'TEXT',md:'MARKDOWN',cfg:'CONFIG',conf:'CONFIG',log:'LOG',dat:'DATA',db:'DATABASE',json:'JSON'}[ext]||'PLAIN';
+  }
+}
+
+/* hook up editor events after render */
+function initEditor() {
+  const ta = document.getElementById('ed-body');
+  if (!ta || ta.dataset.init) return;
+  ta.dataset.init = '1';
+  ta.addEventListener('input', () => {
+    const mod = document.getElementById('ed-modified');
+    if (mod) mod.textContent = ta.value !== editorOriginal ? ' [modified]' : '';
+    editorUpdateStatus();
+  });
+  ta.addEventListener('keyup', editorUpdateStatus);
+  ta.addEventListener('click', editorUpdateStatus);
+  ta.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); editorSave(); }
+    if (e.key === 'Tab') { e.preventDefault(); const s=ta.selectionStart; ta.value=ta.value.substring(0,s)+'  '+ta.value.substring(ta.selectionEnd); ta.selectionStart=ta.selectionEnd=s+2; }
+  });
+}
+
+/* ── SYSTEM MONITOR ──────────────────────────────────────────────────────── */
+function buildSysMon() {
+  return `<div class="app-sysmon" id="sysmon-app">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+      <span style="font-family:Orbitron,monospace;font-size:11px;color:var(--green-dim);letter-spacing:2px;">SYSTEM MONITOR</span>
+      <button style="margin-left:auto;background:var(--green-dark);border:1px solid var(--border);color:var(--green-dim);font-family:Orbitron,monospace;font-size:9px;padding:3px 10px;cursor:pointer;letter-spacing:1px;" onclick="sysmonRefresh()">↺ REFRESH</button>
+    </div>
+    <div id="sysmon-content"></div>
+  </div>`;
+}
+
+function sysmonRefresh() {
+  reloadShared();
+  const el = document.getElementById('sysmon-content');
+  if (!el) return;
+  const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu) : null;
+  const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu) : null;
+  const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram) : null;
+  const cpuLoad = randRange(15,85), memLoad = randRange(30,75), diskLoad = randRange(5,40);
+  const damaged = Object.values(sysHealth).filter(v=>!v).length;
+
+  el.innerHTML = `
+    <div class="sm-block">
+      <div class="sm-block-title">HARDWARE</div>
+      <div class="sm-hw-grid">
+        <div class="sm-hw-cell"><div class="sm-hw-name">CPU</div><div class="sm-hw-val">${cpu?.name||'Unknown'}</div></div>
+        <div class="sm-hw-cell"><div class="sm-hw-name">GPU</div><div class="sm-hw-val">${gpu?.name||'Unknown'}</div></div>
+        <div class="sm-hw-cell"><div class="sm-hw-name">RAM</div><div class="sm-hw-val">${ram?.name||'Unknown'}</div></div>
+        <div class="sm-hw-cell"><div class="sm-hw-name">DISK</div><div class="sm-hw-val">2TB NVMe RAID-1</div></div>
+      </div>
+    </div>
+    <div class="sm-block">
+      <div class="sm-block-title">PERFORMANCE</div>
+      <div class="sm-bar-wrap">
+        <div class="sm-bar-label"><span>CPU Usage</span><span>${cpuLoad}%</span></div>
+        <div class="sm-bar"><div class="sm-bar-fill ${cpuLoad>80?'red':cpuLoad>60?'amber':''}" style="width:${cpuLoad}%"></div></div>
+        <div class="sm-bar-label"><span>Memory</span><span>${memLoad}%</span></div>
+        <div class="sm-bar"><div class="sm-bar-fill ${memLoad>85?'red':memLoad>70?'amber':''}" style="width:${memLoad}%"></div></div>
+        <div class="sm-bar-label"><span>Disk I/O</span><span>${diskLoad}%</span></div>
+        <div class="sm-bar"><div class="sm-bar-fill" style="width:${diskLoad}%"></div></div>
+      </div>
+    </div>
+    <div class="sm-block">
+      <div class="sm-block-title">SYSTEM HEALTH</div>
+      ${Object.entries(sysHealth).map(([k,v]) =>
+        `<div class="sm-stat-row"><span class="sm-stat-key">${k.toUpperCase()}</span><span class="sm-stat-val ${v?'ok':'err'}">${v?'HEALTHY':'DAMAGED'}</span></div>`
+      ).join('')}
+      ${!Object.keys(sysHealth).length ? '<div style="color:var(--text-mute);font-size:11px;padding:4px 0;">No health data. Open the terminal first.</div>' : ''}
+      <div class="sm-stat-row"><span class="sm-stat-key">DAMAGED SYSTEMS</span><span class="sm-stat-val ${damaged>0?'err':'ok'}">${damaged} / ${Object.keys(sysHealth).length}</span></div>
+    </div>
+    <div class="sm-block">
+      <div class="sm-block-title">SOFTWARE</div>
+      <div class="sm-stat-row"><span class="sm-stat-key">Installed packages</span><span class="sm-stat-val ok">${software.length}</span></div>
+      ${software.map(id => `<div class="sm-stat-row"><span class="sm-stat-key">${id}</span><span class="sm-stat-val ok">ACTIVE</span></div>`).join('')}
+    </div>
+    <div class="sm-block">
+      <div class="sm-block-title">PROCESS LIST</div>
+      ${[['1','init','0.0%','0.1%'],['42','tscpp_sh','1.2%','1.8%'],['88','enc_module','0.4%','2.1%'],['99','firewall_d','0.1%','0.3%']].map(
+        ([pid,name,cpu,mem]) => `<div class="sm-stat-row"><span class="sm-stat-key">[${pid.padStart(3,'0')}] ${name}</span><span class="sm-stat-val">CPU ${cpu} MEM ${mem}</span></div>`
+      ).join('')}
+    </div>`;
+}
+
+/* ── REGISTRY VIEWER ─────────────────────────────────────────────────────── */
+let rgCurHive = null, rgCurKey = null;
+
+function buildRegistry() {
+  return `<div class="app-registry">
+    <div class="rg-mini-toolbar">
+      <span style="font-family:Orbitron,monospace;font-size:9px;color:var(--amber);letter-spacing:2px;">REGISTRY</span>
+      <input class="rg-mini-path" id="rg-path-disp" readonly value="HKEY_SYSTEM">
+    </div>
+    <div class="rg-mini-body">
+      <div class="rg-mini-tree" id="rg-tree"></div>
+      <div class="rg-mini-vals">
+        <div class="rg-mini-header"><span>NAME</span><span>TYPE</span><span>DATA</span></div>
+        <div id="rg-vals"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function rgBuild() {
+  reloadShared();
+  const tree = document.getElementById('rg-tree');
+  if (!tree) return;
+  tree.innerHTML = '';
+  Object.keys(registry).forEach(hive => {
+    const hEl = document.createElement('div');
+    hEl.className = 'rg-mini-hive';
+    hEl.innerHTML = '▶ ' + hive;
+    hEl.onclick = () => rgToggle(hive);
+    tree.appendChild(hEl);
+    const sub = document.createElement('div');
+    sub.id = 'rg-sub-' + hive;
+    sub.style.display = 'none';
+    Object.keys(registry[hive]).forEach(key => {
+      const kEl = document.createElement('div');
+      kEl.className = 'rg-mini-key';
+      kEl.innerHTML = '📁 ' + key;
+      kEl.onclick = () => rgSelectKey(hive, key);
+      sub.appendChild(kEl);
+    });
+    tree.appendChild(sub);
+  });
+}
+
+function rgToggle(hive) {
+  const sub = document.getElementById('rg-sub-' + hive);
+  if (sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+}
+
+function rgSelectKey(hive, key) {
+  rgCurHive = hive; rgCurKey = key;
+  const path = document.getElementById('rg-path-disp');
+  if (path) path.value = `${hive}\\${key}`;
+  document.querySelectorAll('.rg-mini-key').forEach(k => k.classList.remove('selected'));
+  const vals = document.getElementById('rg-vals');
+  if (!vals) return;
+  const entries = registry?.[hive]?.[key] || {};
+  vals.innerHTML = Object.entries(entries).map(([n,e]) =>
+    `<div class="rg-mini-val-row" title="${n}" onclick="rgEditInline('${hive}','${key}','${n}')">
+      <span>${n}</span><span>${e.type}</span><span>${String(e.value)}</span>
+    </div>`
+  ).join('') || '<div style="padding:8px;font-size:10px;color:#333;">No values</div>';
+}
+
+function rgEditInline(hive, key, name) {
+  if (!isAdmin) { notify('ROOT required to edit registry', 'err'); return; }
+  const entry = registry?.[hive]?.[key]?.[name];
+  if (!entry) return;
+  const newVal = prompt(`Edit ${hive}\\${key}\\${name}\nType: ${entry.type}\nCurrent: ${entry.value}\n\nNew value:`, String(entry.value));
+  if (newVal === null) return;
+  let parsed = newVal;
+  if (entry.type === 'REG_BOOL') parsed = newVal.toLowerCase()==='true'||newVal==='1';
+  else if (entry.type === 'REG_DWORD') { parsed = parseInt(newVal); if(isNaN(parsed)){notify('Must be integer','err');return;} }
+  registry[hive][key][name].value = parsed;
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgSelectKey(hive, key);
+  notify(`${name} updated`, 'ok');
+}
+
+/* ── SETTINGS APP ────────────────────────────────────────────────────────── */
+function buildSettings() {
+  const theme   = regGet('HKEY_AGENT','Terminal','Theme') || 'green';
+  const timeout = regGet('HKEY_AGENT','Terminal','SessionTimeout') || 5;
+  const fname   = regGet('HKEY_AGENT','Profile','Username') || 'AGENT';
+  const csign   = regGet('HKEY_AGENT','Profile','Callsign') || 'GHOST';
+  const autoLock= regGet('HKEY_SYSTEM','Security','AutoLock') !== false;
+  const maxAttempts = regGet('HKEY_SYSTEM','Security','LoginAttempts') || 3;
+  const stealthy= regGet('HKEY_NETWORK','Firewall','StealthMode') === true;
+  const auditLog= regGet('HKEY_SYSTEM','Security','AuditLogging') !== false;
+
+  return `<div class="app-settings">
+    <div class="set-sidebar">
+      <div class="set-nav-item active" onclick="setTab(this,'tab-appearance')">🎨 Appearance</div>
+      <div class="set-nav-item" onclick="setTab(this,'tab-profile')">👤 Profile</div>
+      <div class="set-nav-item" onclick="setTab(this,'tab-security')">🔒 Security</div>
+      <div class="set-nav-item" onclick="setTab(this,'tab-network')">🌐 Network</div>
+      <div class="set-nav-item" onclick="setTab(this,'tab-system')">⚙ System</div>
+      <div class="set-nav-item" onclick="setTab(this,'tab-about')">ℹ About</div>
+    </div>
+    <div class="set-body">
+
+      <div id="tab-appearance" class="set-section">
+        <div class="set-section-title">APPEARANCE</div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Terminal Theme</div><div class="set-row-desc">Colour palette for the terminal app</div></div>
+          <select class="set-select" onchange="settingSet('HKEY_AGENT','Terminal','Theme',this.value)">
+            ${['green','amber','red','blue','ice','phosphor'].map(t=>`<option value="${t}"${t===theme?' selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Desktop Wallpaper</div><div class="set-row-desc">Background style</div></div>
+          <button class="set-btn" onclick="cycleWallpaper()">Change Wallpaper</button>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Font Size</div><div class="set-row-desc">Terminal font size (10–20px)</div></div>
+          <input class="set-input" type="number" min="10" max="20" value="${regGet('HKEY_AGENT','Terminal','FontSize')||14}" onchange="settingSet('HKEY_AGENT','Terminal','FontSize',parseInt(this.value))">
+        </div>
+      </div>
+
+      <div id="tab-profile" class="set-section" style="display:none">
+        <div class="set-section-title">PROFILE</div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Username</div><div class="set-row-desc">Shown in terminal prompt</div></div>
+          <input class="set-input" value="${fname}" onchange="settingSet('HKEY_AGENT','Profile','Username',this.value)">
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Callsign</div><div class="set-row-desc">Operative identifier</div></div>
+          <input class="set-input" value="${csign}" onchange="settingSet('HKEY_AGENT','Profile','Callsign',this.value)">
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Lock Screen Key</div><div class="set-row-desc">Change your access key</div></div>
+          <button class="set-btn" onclick="settingsChangeKey('lock')">Change Key</button>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Root Key</div><div class="set-row-desc">Change your ROOT password</div></div>
+          <button class="set-btn" onclick="settingsChangeKey('root')">Change Key</button>
+        </div>
+      </div>
+
+      <div id="tab-security" class="set-section" style="display:none">
+        <div class="set-section-title">SECURITY</div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Auto-Lock on Idle</div><div class="set-row-desc">Lock terminal after timeout</div></div>
+          <label class="set-toggle"><input type="checkbox" ${autoLock?'checked':''} onchange="settingSet('HKEY_SYSTEM','Security','AutoLock',this.checked)"><div class="set-toggle-slider"></div></label>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Session Timeout</div><div class="set-row-desc">Minutes before auto-lock (1–60)</div></div>
+          <input class="set-input" type="number" min="1" max="60" value="${timeout}" onchange="settingSet('HKEY_AGENT','Terminal','SessionTimeout',parseInt(this.value))">
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Login Attempt Limit</div><div class="set-row-desc">Max ROOT failures before lockout</div></div>
+          <input class="set-input" type="number" min="1" max="10" value="${maxAttempts}" onchange="settingSet('HKEY_SYSTEM','Security','LoginAttempts',parseInt(this.value))">
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Audit Logging</div><div class="set-row-desc">Write auth events to sys.log</div></div>
+          <label class="set-toggle"><input type="checkbox" ${auditLog?'checked':''} onchange="settingSet('HKEY_SYSTEM','Security','AuditLogging',this.checked)"><div class="set-toggle-slider"></div></label>
+        </div>
+      </div>
+
+      <div id="tab-network" class="set-section" style="display:none">
+        <div class="set-section-title">NETWORK</div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Firewall Stealth Mode</div><div class="set-row-desc">Hide open ports — reduces trace signature</div></div>
+          <label class="set-toggle"><input type="checkbox" ${stealthy?'checked':''} onchange="settingSet('HKEY_NETWORK','Firewall','StealthMode',this.checked)"><div class="set-toggle-slider"></div></label>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Default FW Policy</div><div class="set-row-desc">DROP or ACCEPT unmatched packets</div></div>
+          <select class="set-select" onchange="settingSet('HKEY_NETWORK','Firewall','DefaultPolicy',this.value)">
+            <option value="DROP"${regGet('HKEY_NETWORK','Firewall','DefaultPolicy')==='DROP'?' selected':''}>DROP</option>
+            <option value="ACCEPT"${regGet('HKEY_NETWORK','Firewall','DefaultPolicy')==='ACCEPT'?' selected':''}>ACCEPT</option>
+          </select>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">VPN Protocol</div><div class="set-row-desc">VPN implementation to use</div></div>
+          <select class="set-select" onchange="settingSet('HKEY_NETWORK','VPN','Protocol',this.value)">
+            ${['WIREGUARD','OPENVPN','IPSEC'].map(p=>`<option value="${p}"${regGet('HKEY_NETWORK','VPN','Protocol')===p?' selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">VPN Kill Switch</div><div class="set-row-desc">Drop traffic if VPN disconnects</div></div>
+          <label class="set-toggle"><input type="checkbox" ${regGet('HKEY_NETWORK','VPN','KillSwitch')?'checked':''} onchange="settingSet('HKEY_NETWORK','VPN','KillSwitch',this.checked)"><div class="set-toggle-slider"></div></label>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Proxy Chain Length</div><div class="set-row-desc">Number of proxy hops (1–5)</div></div>
+          <input class="set-input" type="number" min="1" max="5" value="${regGet('HKEY_NETWORK','Proxy','ChainLength')||1}" onchange="settingSet('HKEY_NETWORK','Proxy','ChainLength',parseInt(this.value))">
+        </div>
+      </div>
+
+      <div id="tab-system" class="set-section" style="display:none">
+        <div class="set-section-title">SYSTEM</div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Boot Animation</div><div class="set-row-desc">Show animated boot sequence</div></div>
+          <label class="set-toggle"><input type="checkbox" ${regGet('HKEY_AGENT','Terminal','BootAnimation')!==false?'checked':''} onchange="settingSet('HKEY_AGENT','Terminal','BootAnimation',this.checked)"><div class="set-toggle-slider"></div></label>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Reboot Timeout</div><div class="set-row-desc">Countdown before reboot (seconds)</div></div>
+          <input class="set-input" type="number" min="1" max="30" value="${regGet('HKEY_SYSTEM','Boot','RebootTimeout')||3}" onchange="settingSet('HKEY_SYSTEM','Boot','RebootTimeout',parseInt(this.value))">
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-label">Kernel Hz</div><div class="set-row-desc">Kernel timer frequency</div></div>
+          <select class="set-select" onchange="settingSet('HKEY_SYSTEM','Kernel','HZ',parseInt(this.value))">
+            ${[100,250,500,1000].map(h=>`<option value="${h}"${(regGet('HKEY_SYSTEM','Kernel','HZ')||1000)===h?' selected':''}>${h}Hz</option>`).join('')}
+          </select>
+        </div>
+        <div class="set-row" style="margin-top:12px;">
+          <div class="set-row-info"><div class="set-row-label">Open Full Terminal</div><div class="set-row-desc">Launch TSCPP_ADVANCED</div></div>
+          <button class="set-btn" onclick="window.open('https://nucleargod12444.github.io/TSCPP-Advanced/')">LAUNCH</button>
+        </div>
+      </div>
+
+      <div id="tab-about" class="set-section" style="display:none">
+        <div class="set-section-title">ABOUT TSCPP-OS</div>
+        <div style="font-size:12px;color:var(--text-mute);line-height:2;">
+          <div class="sm-stat-row"><span>OS</span><span style="color:var(--green-dim)">TSCPP-OS v5.0</span></div>
+          <div class="sm-stat-row"><span>Kernel</span><span style="color:var(--green-dim)">6.5.0-tscpp-amd64</span></div>
+          <div class="sm-stat-row"><span>Desktop</span><span style="color:var(--green-dim)">TSCPP Desktop Environment</span></div>
+          <div class="sm-stat-row"><span>CPU</span><span style="color:var(--green-dim)">${hardware ? hwName('cpu', hardware.cpu) : 'Not configured'}</span></div>
+          <div class="sm-stat-row"><span>GPU</span><span style="color:var(--green-dim)">${hardware ? hwName('gpu', hardware.gpu) : 'Not configured'}</span></div>
+          <div class="sm-stat-row"><span>RAM</span><span style="color:var(--green-dim)">${hardware ? hwName('ram', hardware.ram) : 'Not configured'}</span></div>
+          <div class="sm-stat-row"><span>Storage</span><span style="color:var(--green-dim)">2TB NVMe RAID-1</span></div>
+          <div class="sm-stat-row"><span>Files</span><span style="color:var(--green-dim)">${Object.keys(files).length} stored</span></div>
+          <div class="sm-stat-row"><span>Software</span><span style="color:var(--green-dim)">${software.length} packages</span></div>
+        </div>
+        <div style="margin-top:16px;font-size:10px;color:var(--text-mute);">All data shared with TSCPP_Terminal.html via localStorage.</div>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+function setTab(el, tab) {
+  document.querySelectorAll('.set-nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.set-section').forEach(s=>s.style.display='none');
+  const t = document.getElementById(tab);
+  if (t) t.style.display = 'block';
+}
+
+function settingSet(hive, key, name, value) {
+  if (!registry[hive]) registry[hive] = {};
+  if (!registry[hive][key]) registry[hive][key] = {};
+  if (!registry[hive][key][name]) registry[hive][key][name] = { type:'REG_SZ', value };
+  else registry[hive][key][name].value = value;
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  notify(`${name} updated`, 'ok');
+}
+
+function settingsChangeKey(type) {
+  const current = type === 'lock' ? masterKey : rootKey;
+  const check = prompt(`Enter CURRENT ${type.toUpperCase()} key to verify:`);
+  if (check !== current) { notify('Incorrect key', 'err'); return; }
+  const newKey = prompt('Enter NEW key (min 4 characters):');
+  if (!newKey || newKey.length < 4) { notify('Key too short', 'err'); return; }
+  const confirm = prompt('Confirm new key:');
+  if (newKey !== confirm) { notify('Keys do not match', 'err'); return; }
+  if (type === 'lock') { masterKey = newKey; LS.setItem('tscpp_master_key', newKey); }
+  else { rootKey = newKey; LS.setItem('tscpp_root_key', newKey); }
+  notify(`${type.toUpperCase()} key changed`, 'ok');
+}
+
+/* ── MISC HELPERS ────────────────────────────────────────────────────────── */
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+function randRange(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+
+function notify(msg, type='ok', duration=2500) {
+  const el = document.createElement('div');
+  el.className = `notif ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(), 300); }, duration);
+}
+
+function selectIcon(el) {
+  document.querySelectorAll('.desk-icon').forEach(i=>i.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+/* ── START MENU ──────────────────────────────────────────────────────────── */
+function toggleStartMenu() {
+  const m = document.getElementById('start-menu');
+  const b = document.getElementById('start-btn');
+  if (m.classList.contains('open')) { m.classList.remove('open'); b.classList.remove('active'); }
+  else { m.classList.add('open'); b.classList.add('active'); }
+}
+
+function closeStartMenu() {
+  document.getElementById('start-menu').classList.remove('open');
+  document.getElementById('start-btn').classList.remove('active');
+}
+
+function smSearch(q) {
+  const grid = document.getElementById('sm-app-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.sm-app').forEach(a => {
+    a.style.display = a.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+/* ── CONTEXT MENU ────────────────────────────────────────────────────────── */
+document.getElementById('desktop').addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const ctx = document.getElementById('ctx-menu');
+  ctx.style.left = Math.min(e.clientX, window.innerWidth-170) + 'px';
+  ctx.style.top  = Math.min(e.clientY, window.innerHeight-180) + 'px';
+  ctx.style.display = 'block';
+});
+document.addEventListener('click', () => hideCtx());
+function hideCtx() { document.getElementById('ctx-menu').style.display='none'; }
+
+/* ── CLOCK ───────────────────────────────────────────────────────────────── */
+function updateClock() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const longTime = now.toLocaleTimeString('en-US',{hour12:false});
+  const longDate = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const clock = document.getElementById('tb-clock');
+  if (clock) clock.innerHTML = timeStr + '<br>' + dateStr;
+  const lsTime = document.getElementById('ls-time');
+  const lsDate = document.getElementById('ls-date');
+  if (lsTime) lsTime.textContent = longTime;
+  if (lsDate) lsDate.textContent = longDate;
+}
+setInterval(updateClock, 1000);
+
+/* ── TRAY ────────────────────────────────────────────────────────────────── */
+function updateTray() {
+  reloadShared();
+  const net   = document.getElementById('tray-net');
+  const risk  = document.getElementById('tray-risk');
+  const health = document.getElementById('tray-health');
+  const state = getLS('tscpp_state') || {};
+  const hasWifi = state.hasWifi || false;
+  const traceRisk = state.traceRisk || 0;
+  const damaged = Object.values(sysHealth).filter(v=>!v).length;
+  if (net) { net.textContent = hasWifi ? '◉ ONLINE' : '◉ OFFLINE'; net.className = 'tray-item ' + (hasWifi?'ok':'err'); }
+  if (risk) { risk.textContent = '🔺 '+traceRisk+'%'; risk.className = 'tray-item ' + (traceRisk>=70?'err':traceRisk>=40?'warn':''); }
+  if (health) { health.textContent = damaged > 0 ? `⚠ ${damaged} ERR` : '✦ OK'; health.className = 'tray-item ' + (damaged>0?'err':'ok'); }
+  const smUser = document.getElementById('sm-username');
+  const smRole = document.getElementById('sm-role');
+  const lsUser = document.getElementById('ls-username');
+  const uname = getUserName();
+  if (smUser) smUser.textContent = uname;
+  if (smRole) smRole.textContent = isAdmin ? 'ROOT Access' : 'Standard Access';
+  if (lsUser) lsUser.textContent = uname;
+}
+setInterval(updateTray, 2000);
+
+/* ── WALLPAPER THEMES ────────────────────────────────────────────────────── */
+function applyThemeFromRegistry() {
+  const theme = regGet('HKEY_AGENT','Terminal','Theme') || 'green';
+  const themes = {
+    green: { '--green':'#00ff41','--green-dim':'#00c711','--green-dark':'#003d10','--bg':'#060a06','--surface':'#0c120c','--border':'#1a2e1a' },
+    amber: { '--green':'#ffaa00','--green-dim':'#cc8800','--green-dark':'#3d2800','--bg':'#0a0700','--surface':'#120e00','--border':'#2e2000' },
+    red:   { '--green':'#ff4444','--green-dim':'#cc2222','--green-dark':'#3d0000','--bg':'#0a0000','--surface':'#120000','--border':'#2e0000' },
+    blue:  { '--green':'#00ccff','--green-dim':'#0099cc','--green-dark':'#002233','--bg':'#00060a','--surface':'#000e14','--border':'#001e2e' },
+    ice:   { '--green':'#cce8ff','--green-dim':'#99ccee','--green-dark':'#1a3344','--bg':'#050810','--surface':'#080e18','--border':'#101e2e' },
+    phosphor:{'--green':'#c8ff80','--green-dim':'#a0d060','--green-dark':'#1e3300','--bg':'#030800','--surface':'#060f00','--border':'#142200'},
+  };
+  const t = themes[theme] || themes.green;
+  Object.entries(t).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
+}
+
+/* ── POST-RENDER INIT ────────────────────────────────────────────────────── */
+const appInitQueue = {
+  terminal:    () => { initTerminal(); termUpdatePrompt(); },
+  filemanager: () => fmRender(),
+  editor:      () => initEditor(),
+  sysmon:      () => { sysmonRefresh(); },
+  registry:    () => rgBuild(),
+  settings:    () => {},
+};
+
+const origCreate = createWindow;
+function openApp(id) {
+  reloadShared();
+  const def = APP_DEFS[id];
+  if (!def) return;
+  const content = def.builder();
+  const w = createWindow({ id, title: def.title, icon: def.icon, content, w: def.w, h: def.h });
+  setTimeout(() => { appInitQueue[id]?.(); }, 60);
+}
+
+/* ── DESKTOP START ───────────────────────────────────────────────────────── */
+function startDesktop() {
+  applyThemeFromRegistry();
+  updateClock();
+  updateTray();
+  isAdmin = false;
+  const smUser = document.getElementById('sm-username');
+  if (smUser) smUser.textContent = getUserName();
+}
+
+function refreshDesktop() {
+  reloadShared();
+  updateTray();
+  notify('Desktop refreshed', 'ok');
+}
+
+/* ── BOOT ────────────────────────────────────────────────────────────────── */
+(async () => {
+  applyWallpaper();
+  updateClock();
+  const hasMaster = !!LS.getItem('tscpp_master_key');
+  if (!hasMaster) {
+    document.getElementById('boot-screen').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-input').focus();
+    notify('First time? Set up keys in TSCPP_Terminal.html first.', 'warn', 5000);
+    return;
+  }
+  await runBoot();
+})();
+</script>
+</body>
+</html>
