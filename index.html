@@ -1807,6 +1807,10 @@ function initTerminal() {
     }
     const cmd = el.value.trim(); el.value = '';
     if (!cmd) return;
+    if (termState.macro.recording) {
+      termState.macro.sequence.push(cmd);
+      saveTermState();
+    }
     termHistory.push(cmd); termHistIdx = termHistory.length;
     LS.setItem('tscpp_history', JSON.stringify(termHistory.slice(-200)));
     await termRun(cmd);
@@ -2206,7 +2210,7 @@ const ITERM_CMDS = {
       termPrint('Usage: cron [list|clear]', 'err');
     }
   },
-  macro: (args) => {
+  macro: async (args) => {
     const sub = (args[0] || 'list').toLowerCase();
     if (sub === 'record') {
       termState.macro.recording = true;
@@ -2218,9 +2222,20 @@ const ITERM_CMDS = {
       termState.macro.recording = false;
       saveTermState();
       termPrint('Macro recording stopped.', 'sys');
+    } else if (sub === 'list') {
+      const recorded = termState.macro.sequence.length;
+      const macroList = termState.macro.name || 'none';
+      termPrint(`Current macro: "${macroList}" (${recorded} commands recorded)`, 'sys');
     } else if (sub === 'play') {
       const name = args[1];
-      const macro = termState.macro; name ? termPrint(`Playing ${name}.`, 'sys') : termPrint('Usage: macro play [name]','err');
+      if (!name) { termPrint('Usage: macro play [name]','err'); return; }
+      const seq = termState.macro.sequence;
+      if (!seq || !seq.length) { termPrint('No recorded macro to play.', 'err'); return; }
+      termPrint(`Playing macro "${name}" (${seq.length} commands)...`, 'sys');
+      for (let i = 0; i < seq.length; i++) {
+        await termRun(seq[i]);
+      }
+      termPrint(`Macro "${name}" playback complete.`, 'sys');
     } else {
       termPrint('Usage: macro [record|play|stop|list]', 'err');
     }
