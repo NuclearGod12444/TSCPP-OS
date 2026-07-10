@@ -523,7 +523,7 @@ body {
     <label>KEY</label>
     <input type="password" id="login-input" autocomplete="off" placeholder="enter access key">
   </div>
-  <div class="ls-hint">TSCPP-OS v5.1.1 · <span id="ls-hostname">LOCAL</span></div>
+  <div class="ls-hint" id="ls-hint">TSCPP-OS v? · <span id="ls-hostname">LOCAL</span></div>
 </div>
 
 <!-- Desktop -->
@@ -633,10 +633,29 @@ body {
 </div>
 
 <script>
-const TSCPP_DESKTOP_VERSION = '5.1.1';
+const TSCPP_DESKTOP_VERSION = '5.1.2';
 const TSCPP_DESKTOP_DATE    = '2026-07-09';
 
+function refreshVersionLabels() {
+  const hint = document.getElementById('ls-hint');
+  if (hint) {
+    const host = document.getElementById('ls-hostname')?.textContent || 'LOCAL';
+    hint.innerHTML = `TSCPP-OS v${TSCPP_DESKTOP_VERSION} · <span id="ls-hostname">${host}</span>`;
+  }
+}
+
+refreshVersionLabels();
+
 const DESKTOP_CHANGELOG = {
+  '5.1.2': {
+    date: '2026-7-9',
+    sections: [
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Fixed even more accidental flaws made by me, whoops.',
+        'Changed how the update system works a bit, should correctly detect new updates now, properly.',
+      ]},
+    ],
+  },
   '5.1.1': {
     date: '2026-7-9',
     sections: [
@@ -810,6 +829,40 @@ function updShowManual() {
   document.getElementById('update-overlay').classList.remove('hidden');
 }
 
+async function updFetchRemoteVersion() {
+  notify('Checking for updates...', 'ok', 1600);
+  try {
+    const resp = await fetch('./index.html?v=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) throw new Error('Network error');
+    const source = await resp.text();
+    const match = source.match(/const\s+TSCPP_DESKTOP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+    if (!match) throw new Error('Version parse failed');
+    const remoteVersion = match[1];
+    if (remoteVersion === TSCPP_DESKTOP_VERSION) {
+      notify('TSCPP-OS is already up to date', 'ok');
+      return;
+    }
+    if (updVerCmp(remoteVersion, TSCPP_DESKTOP_VERSION) <= 0) {
+      notify('No newer update found', 'ok');
+      return;
+    }
+    const overlay = document.getElementById('update-overlay');
+    const badge   = document.getElementById('upd-new-ver');
+    const sub     = document.getElementById('upd-subtitle');
+    const fromLbl = document.getElementById('upd-from-label');
+    const body    = document.getElementById('upd-body');
+    if (!overlay || !badge || !sub || !fromLbl || !body) return;
+    badge.textContent   = 'v' + remoteVersion;
+    sub.textContent     = 'A newer TSCPP-OS version is available';
+    fromLbl.textContent = 'from v' + TSCPP_DESKTOP_VERSION;
+    body.innerHTML      = updBuildChangelog(TSCPP_DESKTOP_VERSION);
+    overlay.classList.remove('hidden');
+  } catch (error) {
+    notify('Update check failed', 'err');
+    console.warn('Update check failed', error);
+  }
+}
+
 function addTrayUpdateBadge() {
   if (document.getElementById('tray-update-badge')) return;
   const badge = document.createElement('span');
@@ -912,7 +965,7 @@ async function runBoot() {
   const lines = document.getElementById('boot-lines');
   const fill  = document.getElementById('boot-prog-fill');
   const items = [
-    ['>> TSCPP BIOS v5.1.1 — POST STARTING...',''],
+    [`>> TSCPP BIOS v${TSCPP_DESKTOP_VERSION} — POST STARTING...`,''],
     ['>> CPU........ OK','boot-ok'],
     ['>> RAM........ OK','boot-ok'],
     ['>> DISK....... OK','boot-ok'],
@@ -1211,7 +1264,7 @@ const ITERM_CMDS = {
     const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu)?.name : 'Unknown';
     const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu)?.name : 'Unknown';
     const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram)?.name : 'Unknown';
-    ['── TSCPP-OS v5.1.1 ──','CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
+    [`── TSCPP-OS v${TSCPP_DESKTOP_VERSION} ──`,'CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
      'NODE : LOCAL','Files: '+Object.keys(files).length+' stored',
     ].forEach(l => termPrint('  '+l,'sys'));
   },
@@ -1847,6 +1900,7 @@ function buildSettings() {
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;">
             <button class="set-btn" onclick="updShowManual()">View Changelog</button>
+            <button class="set-btn" onclick="updFetchRemoteVersion()">Check for Updates</button>
             <button class="set-btn" onclick="updInstall()" style="${LS.getItem('tscpp_desktop_version')===TSCPP_DESKTOP_VERSION?'opacity:0.3;cursor:not-allowed':''}">Mark Updated</button>
           </div>
         </div>

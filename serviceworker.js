@@ -1,4 +1,4 @@
-const cacheName = 'TSCPPDESKTOP-v5.1.1';
+const cacheName = 'TSCPPDESKTOP-v5.1.2';
 const staticAssets = [
   './',
   './index.html',
@@ -25,8 +25,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const reqUrl = new URL(event.request.url);
+  if (reqUrl.searchParams.has('v')) {
+    event.respondWith(fetch(event.request).then(resp => {
+      try { const r = resp.clone(); caches.open(cacheName).then(c=>c.put(event.request, r)); } catch(e){}
+      return resp;
+    }).catch(() => caches.match(event.request)));
+    return;
+  }
   event.respondWith((async () => {
-    const cached = await caches.match(event.request, { ignoreSearch: true });
+    const cached = await caches.match(event.request);
     return cached || fetch(event.request);
   })());
 });
