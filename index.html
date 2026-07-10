@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>TSCPP-OS Desktop</title>
-<link rel="icon" type="image/png" href="TSCPP.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
 
@@ -408,6 +407,68 @@ body {
 .rg-mini-val-row span:last-child { color: var(--text-mute); }
 .rg-mini-header { display: grid; grid-template-columns: 2fr 1fr 3fr; padding: 4px 10px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 10px; color: #333; position: sticky; top: 0; }
 
+/* ── UPDATE MODAL ─────────────────────────────────────────────────────────── */
+#update-overlay {
+  position: fixed; inset: 0; z-index: 950;
+  background: rgba(0,0,0,0.75);
+  display: flex; align-items: center; justify-content: center;
+}
+#update-overlay.hidden { display: none; }
+#update-box {
+  background: var(--surface); border: 1px solid var(--green-dark);
+  width: 520px; max-height: 80vh; display: flex; flex-direction: column;
+  box-shadow: 0 0 60px rgba(0,255,65,0.1);
+}
+.upd-header {
+  background: var(--green-dark); padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.upd-header-icon { font-size: 22px; }
+.upd-header-text { flex: 1; }
+.upd-title { font-family: 'Orbitron', monospace; font-size: 13px; color: var(--green); letter-spacing: 2px; }
+.upd-subtitle { font-size: 10px; color: var(--green-dim); margin-top: 2px; letter-spacing: 1px; }
+.upd-badge { font-family: 'Orbitron', monospace; font-size: 10px; background: var(--green); color: var(--bg); padding: 3px 10px; letter-spacing: 1px; }
+.upd-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.upd-body::-webkit-scrollbar { width: 3px; }
+.upd-body::-webkit-scrollbar-thumb { background: var(--border2); }
+.upd-version-row { display: flex; align-items: baseline; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.upd-ver-num { font-family: 'Orbitron', monospace; font-size: 22px; color: var(--green); }
+.upd-ver-date { font-size: 10px; color: var(--text-mute); }
+.upd-ver-from { font-size: 10px; color: #2a4a2a; margin-left: auto; }
+.upd-section { margin-bottom: 14px; }
+.upd-section-label {
+  font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 2px;
+  padding: 2px 8px; margin-bottom: 6px; display: inline-block;
+}
+.upd-section-label.feat  { background: rgba(0,255,65,0.1);  color: var(--green-dim); }
+.upd-section-label.fix   { background: rgba(0,170,255,0.1); color: var(--blue); }
+.upd-section-label.impr  { background: rgba(255,170,0,0.1); color: var(--amber); }
+.upd-section-label.break { background: rgba(255,51,51,0.1);  color: var(--red); }
+.upd-item { font-size: 11px; color: var(--text-mute); padding: 3px 8px; display: flex; gap: 8px; line-height: 1.5; }
+.upd-item::before { content:'▸'; color: var(--border2); flex-shrink: 0; }
+.upd-prev-ver { font-size: 10px; color: #1a3a1a; padding: 4px 8px; margin-top: 4px; border-top: 1px solid var(--border); }
+.upd-footer {
+  padding: 12px 20px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: #080d08; flex-shrink: 0;
+}
+.upd-skip { font-size: 10px; color: var(--text-mute); cursor: pointer; }
+.upd-skip:hover { color: var(--text); }
+.upd-install-btn {
+  background: var(--green); color: var(--bg); border: none;
+  font-family: 'Orbitron', monospace; font-size: 11px;
+  letter-spacing: 2px; padding: 9px 24px; cursor: pointer; font-weight: 700;
+  transition: background 0.15s;
+}
+.upd-install-btn:hover { background: var(--green-dim); }
+.upd-tray-badge {
+  font-family: 'Orbitron', monospace; font-size: 9px;
+  background: var(--green); color: var(--bg);
+  padding: 2px 7px; cursor: pointer; letter-spacing: 1px;
+  animation: upd-pulse 2s ease-in-out infinite;
+}
+@keyframes upd-pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+
 /* Notification */
 .notif {
   position: fixed; bottom: calc(var(--taskbar-h) + 8px); right: 12px;
@@ -461,7 +522,7 @@ body {
     <label>KEY</label>
     <input type="password" id="login-input" autocomplete="off" placeholder="enter access key">
   </div>
-  <div class="ls-hint">TSCPP-OS v1.0 · <span id="ls-hostname">LOCAL</span></div>
+  <div class="ls-hint">TSCPP-OS v5.0 · <span id="ls-hostname">LOCAL</span></div>
 </div>
 
 <!-- Desktop -->
@@ -537,6 +598,28 @@ body {
   </div>
 </div>
 
+<!-- Update Modal -->
+<div id="update-overlay" class="hidden">
+  <div id="update-box">
+    <div class="upd-header">
+      <span class="upd-header-icon">⬆</span>
+      <div class="upd-header-text">
+        <div class="upd-title">TSCPP-OS UPDATE AVAILABLE</div>
+        <div class="upd-subtitle" id="upd-subtitle">A new version has been detected</div>
+      </div>
+      <span class="upd-badge" id="upd-new-ver">v?.?.?</span>
+    </div>
+    <div class="upd-body" id="upd-body"></div>
+    <div class="upd-footer">
+      <span class="upd-skip" onclick="updSkip()">Remind me later</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:10px;color:var(--text-mute);" id="upd-from-label"></span>
+        <button class="upd-install-btn" onclick="updInstall()">INSTALL UPDATE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Context Menu -->
 <div id="ctx-menu">
   <div class="ctx-item" onclick="openApp('terminal');hideCtx()">⬛ Open Terminal</div>
@@ -549,6 +632,159 @@ body {
 </div>
 
 <script>
+const TSCPP_DESKTOP_VERSION = '5.1.0';
+const TSCPP_DESKTOP_DATE    = '2025-01-01';
+
+const DESKTOP_CHANGELOG = {
+  '5.1.0': {
+    date: '2025-01-01',
+    sections: [
+      { type:'feat', label:'NEW FEATURES', items:[
+        'Desktop OS — full windowed environment with taskbar and start menu',
+        'Window manager — drag, resize, minimize, maximize, close all windows',
+        'File Manager — directory tree, file grid, double-click to edit',
+        'Text Editor — multi-file tabbed editor with Ctrl+S save',
+        'System Monitor — live hardware stats, health overview, process list',
+        'Registry Editor — full HKEY tree browser with inline editing',
+        'Settings — 6-tab settings panel writing directly to terminal registry',
+        'Update System — automatic version detection with changelog',
+      ]},
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'All apps share live localStorage with TSCPP_Terminal.html',
+        'Wallpaper cycles through 6 themes via right-click menu',
+        'Start menu with search and power controls',
+        'Tray shows live network, trace risk, and health status',
+      ]},
+    ],
+  },
+  '5.0.0': {
+    date: '2024-12-01',
+    sections: [
+      { type:'feat', label:'NEW FEATURES', items:[
+        'Hardware builder — pick CPU, GPU, RAM with bottleneck detection',
+        'Built-in browser with TSCPP-Net and dark web support',
+        'Software store with 10 downloadable packages',
+        'Functional system files — firewall.rules, hosts, network.conf all live',
+        'Windows registry — HKEY_SYSTEM, HKEY_NETWORK, HKEY_AGENT, HKEY_SOFTWARE',
+        'regedit visual editor and reg CLI commands',
+        'Sidebar tabbed panels — NAV, FILES, SYSTEM, HELP',
+        '10-step tutorial system with progress tracking',
+        'Expanded minimap with live metric grid and node detail',
+      ]},
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Directory tree with cd, mkdir, rmdir, pwd',
+        'File permissions enforced per directory',
+        'Every command now has man/help usage page',
+        'Session timeout reads from registry',
+        'sys.log appends real timestamped auth events',
+      ]},
+    ],
+  },
+  '4.0.0': {
+    date: '2024-11-01',
+    sections: [
+      { type:'feat', label:'NEW FEATURES', items:[
+        'Nano text editor overlay with Ctrl+S save',
+        'Macro recorder — record, stop, run, list, delete',
+        'Theme switcher — green, amber, red, blue, ice, phosphor',
+        'First-run setup wizard for lock and root keys',
+        'Hardware failure engine — RAM ECC, disk error, thermal, kernel panic',
+        'Dangerous filesystem — erasing system files causes real consequences',
+        'os-reinstall command for full factory reset',
+      ]},
+    ],
+  },
+};
+
+function updCheckVersion() {
+  const stored = LS.getItem('tscpp_desktop_version');
+  if (stored === TSCPP_DESKTOP_VERSION) return;
+  const isFirstInstall = !stored;
+  if (isFirstInstall) {
+    LS.setItem('tscpp_desktop_version', TSCPP_DESKTOP_VERSION);
+    return;
+  }
+  const overlay = document.getElementById('update-overlay');
+  const badge   = document.getElementById('upd-new-ver');
+  const sub     = document.getElementById('upd-subtitle');
+  const fromLbl = document.getElementById('upd-from-label');
+  const body    = document.getElementById('upd-body');
+  if (!overlay) return;
+  badge.textContent   = 'v' + TSCPP_DESKTOP_VERSION;
+  sub.textContent     = 'TSCPP-OS Desktop has been updated';
+  fromLbl.textContent = 'from v' + stored;
+  body.innerHTML = updBuildChangelog(stored);
+  overlay.classList.remove('hidden');
+}
+
+function updBuildChangelog(fromVer) {
+  let html = '';
+  const versions = Object.keys(DESKTOP_CHANGELOG).sort((a,b) => updVerCmp(b,a));
+  for (const ver of versions) {
+    if (updVerCmp(ver, fromVer) <= 0) break;
+    const info = DESKTOP_CHANGELOG[ver];
+    html += `<div class="upd-version-row">
+      <span class="upd-ver-num">v${ver}</span>
+      <span class="upd-ver-date">${info.date}</span>
+    </div>`;
+    info.sections.forEach(s => {
+      html += `<div class="upd-section">
+        <div class="upd-section-label ${s.type}">${s.label}</div>
+        ${s.items.map(i=>`<div class="upd-item">${i}</div>`).join('')}
+      </div>`;
+    });
+    html += '<hr class="upd-prev-ver" style="border-color:var(--border);margin:12px 0;">';
+  }
+  return html || '<div style="color:var(--text-mute);font-size:11px;padding:8px;">No changelog available for this update.</div>';
+}
+
+function updVerCmp(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i=0;i<3;i++) { if(pa[i]!==pb[i]) return pa[i]-pb[i]; }
+  return 0;
+}
+
+function updInstall() {
+  LS.setItem('tscpp_desktop_version', TSCPP_DESKTOP_VERSION);
+  document.getElementById('update-overlay').classList.add('hidden');
+  removeTrayUpdateBadge();
+  notify(`TSCPP-OS updated to v${TSCPP_DESKTOP_VERSION}`, 'ok', 3500);
+}
+
+function updSkip() {
+  document.getElementById('update-overlay').classList.add('hidden');
+}
+
+function updShowManual() {
+  const stored = LS.getItem('tscpp_desktop_version') || '0.0.0';
+  const body   = document.getElementById('upd-body');
+  const badge  = document.getElementById('upd-new-ver');
+  const sub    = document.getElementById('upd-subtitle');
+  const from   = document.getElementById('upd-from-label');
+  if (!body) return;
+  badge.textContent = 'v' + TSCPP_DESKTOP_VERSION;
+  sub.textContent   = stored === TSCPP_DESKTOP_VERSION ? 'You are up to date' : 'Update detected';
+  from.textContent  = 'installed: v' + stored;
+  body.innerHTML    = updBuildChangelog('0.0.0');
+  document.getElementById('update-overlay').classList.remove('hidden');
+}
+
+function addTrayUpdateBadge() {
+  if (document.getElementById('tray-update-badge')) return;
+  const badge = document.createElement('span');
+  badge.id        = 'tray-update-badge';
+  badge.className = 'upd-tray-badge';
+  badge.textContent = '↑ UPDATE';
+  badge.title     = 'Click to view update';
+  badge.onclick   = () => document.getElementById('update-overlay').classList.remove('hidden');
+  document.getElementById('tb-tray').prepend(badge);
+}
+
+function removeTrayUpdateBadge() {
+  document.getElementById('tray-update-badge')?.remove();
+}
+
 const LS = localStorage;
 const getLS  = (k, fb='null') => { try { return JSON.parse(LS.getItem(k) || fb); } catch(e) { return null; } };
 const setLS  = (k, v) => LS.setItem(k, JSON.stringify(v));
@@ -636,7 +872,7 @@ async function runBoot() {
   const lines = document.getElementById('boot-lines');
   const fill  = document.getElementById('boot-prog-fill');
   const items = [
-    ['>> TSCPP BIOS v1.0 — POST STARTING...',''],
+    ['>> TSCPP BIOS v5.0 — POST STARTING...',''],
     ['>> CPU........ OK','boot-ok'],
     ['>> RAM........ OK','boot-ok'],
     ['>> DISK....... OK','boot-ok'],
@@ -925,7 +1161,7 @@ const ITERM_CMDS = {
      ['clear','Clear screen'],['login','Become ROOT'],['logout','End ROOT session'],
      ['reg query [path]','Query registry'],['reg set [path] [val]','Set registry value'],
     ].forEach(([c,d]) => termPrint('  ' + c.padEnd(26) + d, ''));
-    termPrint('  Full terminal: TSCPP-Advanced (launch from settings menu -> system tab)', 'dim');
+    termPrint('  Full terminal: TSCPP_Terminal.html', 'dim');
   },
   clear: () => { const o=document.getElementById('term-out'); if(o) o.innerHTML=''; },
   pwd:   () => termPrint(termCwd, 'sys'),
@@ -935,7 +1171,7 @@ const ITERM_CMDS = {
     const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu)?.name : 'Unknown';
     const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu)?.name : 'Unknown';
     const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram)?.name : 'Unknown';
-    ['── TSCPP-OS v1.0 ──','CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
+    ['── TSCPP-OS v5.0 ──','CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
      'NODE : LOCAL','Files: '+Object.keys(files).length+' stored',
     ].forEach(l => termPrint('  '+l,'sys'));
   },
@@ -1543,17 +1779,17 @@ function buildSettings() {
           </select>
         </div>
         <div class="set-row" style="margin-top:12px;">
-          <div class="set-row-info"><div class="set-row-label">Open Full Terminal</div><div class="set-row-desc">Launch TSCPP_ADVANCED</div></div>
-          <button class="set-btn" onclick="window.open('https://nucleargod12444.github.io/TSCPP-Advanced/')">LAUNCH</button>
+          <div class="set-row-info"><div class="set-row-label">Open Full Terminal</div><div class="set-row-desc">Launch TSCPP_Terminal.html</div></div>
+          <button class="set-btn" onclick="window.open('TSCPP_Terminal.html')">LAUNCH</button>
         </div>
       </div>
 
       <div id="tab-about" class="set-section" style="display:none">
         <div class="set-section-title">ABOUT TSCPP-OS</div>
         <div style="font-size:12px;color:var(--text-mute);line-height:2;">
-          <div class="sm-stat-row"><span>OS</span><span style="color:var(--green-dim)">TSCPP-OS v1.0</span></div>
+          <div class="sm-stat-row"><span>OS</span><span style="color:var(--green-dim)">TSCPP-OS v${TSCPP_DESKTOP_VERSION}</span></div>
+          <div class="sm-stat-row"><span>Build Date</span><span style="color:var(--green-dim)">${TSCPP_DESKTOP_DATE}</span></div>
           <div class="sm-stat-row"><span>Kernel</span><span style="color:var(--green-dim)">6.5.0-tscpp-amd64</span></div>
-          <div class="sm-stat-row"><span>Desktop</span><span style="color:var(--green-dim)">TSCPP Desktop Environment</span></div>
           <div class="sm-stat-row"><span>CPU</span><span style="color:var(--green-dim)">${hardware ? hwName('cpu', hardware.cpu) : 'Not configured'}</span></div>
           <div class="sm-stat-row"><span>GPU</span><span style="color:var(--green-dim)">${hardware ? hwName('gpu', hardware.gpu) : 'Not configured'}</span></div>
           <div class="sm-stat-row"><span>RAM</span><span style="color:var(--green-dim)">${hardware ? hwName('ram', hardware.ram) : 'Not configured'}</span></div>
@@ -1561,7 +1797,22 @@ function buildSettings() {
           <div class="sm-stat-row"><span>Files</span><span style="color:var(--green-dim)">${Object.keys(files).length} stored</span></div>
           <div class="sm-stat-row"><span>Software</span><span style="color:var(--green-dim)">${software.length} packages</span></div>
         </div>
-        <div style="margin-top:16px;font-size:10px;color:var(--text-mute);">All data shared with TSCPP_Terminal.html via localStorage.</div>
+        <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:14px;">
+          <div style="flex:1;">
+            <div style="font-size:10px;color:var(--text-mute);">INSTALLED VERSION</div>
+            <div style="font-family:Orbitron,monospace;font-size:18px;color:var(--green);margin-top:2px;">v${TSCPP_DESKTOP_VERSION}</div>
+            <div style="font-size:10px;margin-top:3px;color:${LS.getItem('tscpp_desktop_version')===TSCPP_DESKTOP_VERSION?'var(--green-dim)':'var(--amber)'}">
+              ${LS.getItem('tscpp_desktop_version')===TSCPP_DESKTOP_VERSION?'✓ Acknowledged — up to date':'↑ Update ready to acknowledge'}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button class="set-btn" onclick="updShowManual()">View Changelog</button>
+            <button class="set-btn" onclick="updInstall()" style="${LS.getItem('tscpp_desktop_version')===TSCPP_DESKTOP_VERSION?'opacity:0.3;cursor:not-allowed':''}">Mark Updated</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:#1a3a1a;line-height:1.7;">
+          To update: drop a new TSCPP_Desktop.html or TSCPP_Terminal.html in place. The desktop detects the version change on next load and shows the full changelog automatically.
+        </div>
       </div>
 
     </div>
@@ -1729,6 +1980,9 @@ function startDesktop() {
   isAdmin = false;
   const smUser = document.getElementById('sm-username');
   if (smUser) smUser.textContent = getUserName();
+  const stored = LS.getItem('tscpp_desktop_version');
+  if (stored && stored !== TSCPP_DESKTOP_VERSION) addTrayUpdateBadge();
+  setTimeout(() => updCheckVersion(), 1200);
 }
 
 function refreshDesktop() {
