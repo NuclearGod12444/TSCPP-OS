@@ -14,10 +14,10 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "/TSCPP-OS/index.html",
-  "scope": "/TSCPP-OS/",
-  "id": "/TSCPP-OS/",
+  "start_url": "index.html",
+  "scope": "./",
+  "id": "./",
   "background_color": "#000000",
-  "display": "fullscreen",
+  "display": "standalone",
   "theme_color": "#000000"
 }

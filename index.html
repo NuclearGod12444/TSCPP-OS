@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>TSCPP-OS Desktop</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a140d"> 
 <link rel="icon" type="image/png" href="TSCPP.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
@@ -3297,10 +3299,6 @@ function buildSettings() {
             ${[100,250,500,1000].map(h=>`<option value="${h}"${(regGet('HKEY_SYSTEM','Kernel','HZ')||1000)===h?' selected':''}>${h}Hz</option>`).join('')}
           </select>
         </div>
-        <div class="set-row" style="margin-top:12px;">
-          <div class="set-row-info"><div class="set-row-label">Open Full Terminal</div><div class="set-row-desc">Launch TSCPP-Advanced.html</div></div>
-          <button class="set-btn" onclick="window.open('TSCPP-Advanced.html')">LAUNCH</button>
-        </div>
       </div>
 
       <div id="tab-about" class="set-section" style="display:none">
@@ -3329,9 +3327,6 @@ function buildSettings() {
             <button class="set-btn" onclick="updFetchRemoteVersion()">Check for Updates</button>
             <button class="set-btn" onclick="updInstall()" style="${LS.getItem('tscpp_desktop_version')===TSCPP_DESKTOP_VERSION?'opacity:0.3;cursor:not-allowed':''}">Mark Updated</button>
           </div>
-        </div>
-        <div style="margin-top:10px;font-size:10px;color:#1a3a1a;line-height:1.7;">
-          To update: drop a new TSCPP_Desktop.html or TSCPP-Advanced.html in place. The desktop detects the version change on next load and shows the full changelog automatically.
         </div>
       </div>
 
