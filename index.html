@@ -1792,7 +1792,6 @@ const ITERM_CMDS = {
     termPrint('Registry editor opened.', 'sys');
   },
   'os-reinstall': () => {
-    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
     performSystemReinstall();
   },
   cron: (args) => {
