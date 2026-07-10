@@ -549,6 +549,10 @@ body {
       <div class="desk-icon-img">📝</div>
       <div class="desk-icon-label">Text Editor</div>
     </div>
+    <div class="desk-icon" ondblclick="openApp('modeditor')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">🛠</div>
+      <div class="desk-icon-label">System Editor</div>
+    </div>
     <div class="desk-icon" ondblclick="openApp('browser')" onclick="selectIcon(this)">
       <div class="desk-icon-img">🌐</div>
       <div class="desk-icon-label">Browser</div>
@@ -556,6 +560,10 @@ body {
     <div class="desk-icon" ondblclick="openApp('software')" onclick="selectIcon(this)">
       <div class="desk-icon-img">🛒</div>
       <div class="desk-icon-label">Software</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('hardware')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">🧩</div>
+      <div class="desk-icon-label">Hardware</div>
     </div>
     <div class="desk-icon" ondblclick="openApp('calculator')" onclick="selectIcon(this)">
       <div class="desk-icon-img">🧮</div>
@@ -610,8 +618,10 @@ body {
       <div class="sm-app" onclick="openApp('terminal');closeStartMenu()"><div class="sm-app-icon">⬛</div><div class="sm-app-name">Terminal</div></div>
       <div class="sm-app" onclick="openApp('filemanager');closeStartMenu()"><div class="sm-app-icon">📁</div><div class="sm-app-name">Files</div></div>
       <div class="sm-app" onclick="openApp('editor');closeStartMenu()"><div class="sm-app-icon">📝</div><div class="sm-app-name">Text Editor</div></div>
+      <div class="sm-app" onclick="openApp('modeditor');closeStartMenu()"><div class="sm-app-icon">🛠</div><div class="sm-app-name">System Editor</div></div>
       <div class="sm-app" onclick="openApp('browser');closeStartMenu()"><div class="sm-app-icon">🌐</div><div class="sm-app-name">Browser</div></div>
       <div class="sm-app" onclick="openApp('software');closeStartMenu()"><div class="sm-app-icon">🛒</div><div class="sm-app-name">Software Store</div></div>
+      <div class="sm-app" onclick="openApp('hardware');closeStartMenu()"><div class="sm-app-icon">🧩</div><div class="sm-app-name">Hardware</div></div>
       <div class="sm-app" onclick="openApp('calculator');closeStartMenu()"><div class="sm-app-icon">🧮</div><div class="sm-app-name">Calculator</div></div>
       <div class="sm-app" onclick="openApp('notepad');closeStartMenu()"><div class="sm-app-icon">📒</div><div class="sm-app-name">Notepad</div></div>
       <div class="sm-app" onclick="openApp('sysmon');closeStartMenu()"><div class="sm-app-icon">📊</div><div class="sm-app-name">Sys Monitor</div></div>
@@ -937,6 +947,7 @@ let sysHealth   = getLS('tscpp_health') || {};
 let registry    = getLS('tscpp_registry') || {};
 let hardware    = getLS('tscpp_hardware');
 let software    = getLS('tscpp_software') || [];
+let mods        = getLS('tscpp_mods') || {};
 let dirs        = getLS('tscpp_dirs') || ['/','/home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
 let fileLocs    = getLS('tscpp_locs') || {};
 let masterKey   = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
@@ -949,6 +960,7 @@ function reloadShared() {
   registry  = getLS('tscpp_registry') || {};
   hardware  = getLS('tscpp_hardware');
   software  = getLS('tscpp_software') || [];
+  mods      = getLS('tscpp_mods') || {};
   dirs      = getLS('tscpp_dirs') || ['/','/home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
   fileLocs  = getLS('tscpp_locs') || {};
   masterKey = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
@@ -1011,6 +1023,70 @@ const HW_CATALOG = {
 
 function hwName(type, id) {
   return HW_CATALOG[type]?.find(x=>x.id===id)?.name || id || 'Unknown';
+}
+
+function getHardwarePerformance() {
+  if (!hardware) {
+    return {
+      cpuTier: 0,
+      gpuTier: 0,
+      ramGB: 0,
+      score: 12,
+      grade: 'Unconfigured',
+      delay: 2,
+      cpuBottleneck: false,
+      memPressure: false,
+      unstable: false,
+      defectRisk: 15,
+      artifactChance: 0.05,
+      warnings: ['Hardware not configured. Use the Hardware Builder to configure system components.']
+    };
+  }
+  const cpuIndex = HW_CATALOG.cpu.findIndex(x => x.id === hardware.cpu);
+  const gpuIndex = HW_CATALOG.gpu.findIndex(x => x.id === hardware.gpu);
+  const ramGB = parseInt((hardware.ram || '').match(/(\d+)/)?.[1] || '0', 10) || 0;
+  const cpuTier = cpuIndex >= 0 ? cpuIndex + 1 : 1;
+  const gpuTier = gpuIndex >= 0 ? gpuIndex + 1 : 1;
+  let score = cpuTier * 7 + gpuTier * 6 + Math.min(ramGB, 128) / 2;
+  if (ramGB <= 8) score -= 14;
+  if (ramGB <= 4) score -= 10;
+  const cpuBottleneck = gpuTier > cpuTier + 3;
+  if (cpuBottleneck) score -= 11;
+  if (ramGB < 16 && gpuTier >= 7) score -= 8;
+  const norm = Math.max(0, Math.min(100, Math.round((score / 194) * 100)));
+  const warnings = [];
+  if (ramGB <= 8) warnings.push('Low RAM: system will lag and swap frequently.');
+  if (ramGB <= 4) warnings.push('Critical RAM: heavy tasks may fail and terminal commands can stall.');
+  if (cpuBottleneck) warnings.push('CPU bottleneck: selected GPU is too powerful for the CPU.');
+  if (ramGB < 16 && gpuTier >= 7) warnings.push('High GPU and low RAM may cause stutter and memory pressure.');
+  const defectiveCPU = cpuTier <= 2 && gpuTier >= 7;
+  const defectiveGPU = gpuTier >= 9 && ramGB < 16;
+  if (defectiveCPU) warnings.push('Possible CPU defect: this build may produce artifacts under load.');
+  if (defectiveGPU) warnings.push('Possible GPU defect: graphics and output may flash or glitch.');
+  if (norm < 40) warnings.push('Performance is poor. Upgrade hardware to avoid system instability.');
+  if (!warnings.length) warnings.push('Hardware balance is good. System should perform smoothly.');
+  const grade = norm >= 75 ? 'Excellent' : norm >= 55 ? 'Good' : norm >= 40 ? 'Fair' : norm >= 25 ? 'Poor' : 'Unstable';
+  const delay = Math.min(4, Math.max(0, Math.ceil((65 - norm) / 16)));
+  const defectRisk = Math.min(80, 5 + (100 - norm) * 0.35 + (defectiveCPU ? 12 : 0) + (defectiveGPU ? 14 : 0));
+  const artifactChance = Math.min(0.35, 0.02 + (defectRisk / 120) + (ramGB <= 8 ? 0.05 : 0) + (defectiveGPU ? 0.08 : 0));
+  return {
+    cpuTier,
+    gpuTier,
+    ramGB,
+    score: norm,
+    grade,
+    delay,
+    cpuBottleneck,
+    memPressure: ramGB <= 8,
+    unstable: norm < 35,
+    defectRisk: Math.round(defectRisk),
+    artifactChance,
+    defects: {
+      cpu: defectiveCPU,
+      gpu: defectiveGPU,
+    },
+    warnings,
+  };
 }
 
 function regGet(hive, key, name) {
@@ -1517,22 +1593,131 @@ function notepadSave() {
   notify('Note saved', 'ok');
 }
 
-function notepadClear() {
-  const ta = document.getElementById('notepad-body');
-  if (!ta) return;
-  ta.value = '';
-  LS.setItem('tscpp_notepad_text', '');
-  const status = document.getElementById('notepad-status');
-  if (status) status.textContent = 'Empty note';
-  notify('Notepad cleared', 'ok');
+function buildHardwareBuilder() {
+  const cpu = hardware?.cpu || HW_CATALOG.cpu[2].id;
+  const gpu = hardware?.gpu || HW_CATALOG.gpu[2].id;
+  const ram = hardware?.ram || HW_CATALOG.ram[2].id;
+  const perf = getHardwarePerformance();
+  return `<div class="app-hardware" style="display:flex;flex-direction:column;height:100%;background:var(--surface);">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--border);background:var(--surface2);">
+      <span style="font-family:Orbitron,monospace;font-size:11px;color:var(--amber);letter-spacing:2px;">HARDWARE BUILDER</span>
+      <button class="ed-btn" onclick="hwApplySelection()">Apply Build</button>
+      <button class="ed-btn" onclick="hwRandomize()">Randomize</button>
+      <button class="ed-btn" onclick="hwReset()">Reset Hardware</button>
+      <span id="hw-status" style="margin-left:auto;font-size:11px;color:var(--text-mute);">${hardware ? 'Configured' : 'Not configured'}</span>
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <div style="flex:1;padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;">CPU</div>
+          ${HW_CATALOG.cpu.map(c => `<label style="display:block;margin-bottom:6px;"><input type="radio" name="hw-cpu" value="${c.id}" ${c.id===cpu?'checked':''}> ${c.name}</label>`).join('')}
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;">GPU</div>
+          ${HW_CATALOG.gpu.map(g => `<label style="display:block;margin-bottom:6px;"><input type="radio" name="hw-gpu" value="${g.id}" ${g.id===gpu?'checked':''}> ${g.name}</label>`).join('')}
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;">RAM</div>
+          ${HW_CATALOG.ram.map(r => `<label style="display:block;margin-bottom:6px;"><input type="radio" name="hw-ram" value="${r.id}" ${r.id===ram?'checked':''}> ${r.name}</label>`).join('')}
+        </div>
+      </div>
+      <div style="width:300px;border-left:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--surface2);">
+        <div style="font-size:12px;font-weight:700;color:var(--green);">Build Summary</div>
+        <pre style="flex:1;background:var(--bg);color:var(--text);padding:12px;overflow:auto;border:1px solid var(--border);">${hardware ? `${hwName('cpu', hardware.cpu)}\n${hwName('gpu', hardware.gpu)}\n${hwName('ram', hardware.ram)}\nStorage: 2TB NVMe RAID-1\n\nPerformance: ${perf.grade} (${perf.score}%)\n${perf.cpuBottleneck?'Bottleneck: CPU may limit GPU throughput.\n':''}${perf.memPressure?'Memory pressure detected.\n':''}` : 'No hardware configured. Select components and click Apply Build.'}</pre>
+        <div style="font-size:12px;color:var(--text-mute);line-height:1.5;">${hardware ? perf.warnings.join(' ') : 'Choose compatible components. Faster GPUs and RAM raise system load but improve performance. Use the registry editor and terminal specs for deeper tuning.'}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function hwGetSelection() {
+  const cpu = document.querySelector('input[name="hw-cpu"]:checked')?.value;
+  const gpu = document.querySelector('input[name="hw-gpu"]:checked')?.value;
+  const ram = document.querySelector('input[name="hw-ram"]:checked')?.value;
+  return { cpu, gpu, ram };
+}
+
+function hwApplySelection() {
+  const sel = hwGetSelection();
+  if (!sel.cpu || !sel.gpu || !sel.ram) { notify('Select all components first', 'warn'); return; }
+  hardware = sel;
+  LS.setItem('tscpp_hardware', JSON.stringify(hardware));
+  if (!registry.HKEY_SYSTEM) registry.HKEY_SYSTEM = {};
+  registry.HKEY_SYSTEM.Hardware = {
+    CPU: { type:'REG_SZ', value: hwName('cpu', sel.cpu) },
+    GPU: { type:'REG_SZ', value: hwName('gpu', sel.gpu) },
+    RAM: { type:'REG_SZ', value: hwName('ram', sel.ram) },
+  };
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  validateSystemState();
+  renderHardwareBuilder();
+  notify('Hardware build applied', 'ok');
+}
+
+function hwRandomize() {
+  const cpu = HW_CATALOG.cpu[randRange(0, HW_CATALOG.cpu.length-1)].id;
+  const gpu = HW_CATALOG.gpu[randRange(0, HW_CATALOG.gpu.length-1)].id;
+  const ram = HW_CATALOG.ram[randRange(0, HW_CATALOG.ram.length-1)].id;
+  hardware = { cpu, gpu, ram };
+  LS.setItem('tscpp_hardware', JSON.stringify(hardware));
+  if (!registry.HKEY_SYSTEM) registry.HKEY_SYSTEM = {};
+  registry.HKEY_SYSTEM.Hardware = {
+    CPU: { type:'REG_SZ', value: hwName('cpu', cpu) },
+    GPU: { type:'REG_SZ', value: hwName('gpu', gpu) },
+    RAM: { type:'REG_SZ', value: hwName('ram', ram) },
+  };
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  renderHardwareBuilder();
+  notify('Random hardware configured', 'ok');
+}
+
+function hwReset() {
+  hardware = null;
+  LS.setItem('tscpp_hardware', 'null');
+  if (registry?.HKEY_SYSTEM?.Hardware) delete registry.HKEY_SYSTEM.Hardware;
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  renderHardwareBuilder();
+  notify('Hardware reset', 'ok');
+}
+
+function promptHardwareBuild() {
+  const cpuList = HW_CATALOG.cpu.map(x => `${x.id} — ${x.name}`).join('\n');
+  const gpuList = HW_CATALOG.gpu.map(x => `${x.id} — ${x.name}`).join('\n');
+  const ramList = HW_CATALOG.ram.map(x => `${x.id} — ${x.name}`).join('\n');
+  const cpu = prompt('Select CPU by ID:\n' + cpuList, HW_CATALOG.cpu[2].id);
+  const gpu = prompt('Select GPU by ID:\n' + gpuList, HW_CATALOG.gpu[2].id);
+  const ram = prompt('Select RAM by ID:\n' + ramList, HW_CATALOG.ram[2].id);
+  if (!cpu || !gpu || !ram) {
+    notify('Hardware build skipped. Use the Hardware app later.', 'warn', 4000);
+    return;
+  }
+  hardware = { cpu, gpu, ram };
+  LS.setItem('tscpp_hardware', JSON.stringify(hardware));
+  if (!registry.HKEY_SYSTEM) registry.HKEY_SYSTEM = {};
+  registry.HKEY_SYSTEM.Hardware = {
+    CPU: { type:'REG_SZ', value: hwName('cpu', cpu) },
+    GPU: { type:'REG_SZ', value: hwName('gpu', gpu) },
+    RAM: { type:'REG_SZ', value: hwName('ram', ram) },
+  };
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  validateSystemState();
+  notify(`Hardware built: ${hwName('cpu', cpu)}, ${hwName('gpu', gpu)}, ${hwName('ram', ram)}`, 'ok', 5000);
+}
+
+function renderHardwareBuilder() {
+  const app = document.querySelector('.app-hardware');
+  if (!app) return;
+  app.innerHTML = buildHardwareBuilder();
 }
 
 const APP_DEFS = {
   terminal:    { title:'Terminal',       icon:'⬛', w:700, h:450, builder: buildTerminal    },
   filemanager: { title:'File Manager',   icon:'📁', w:660, h:440, builder: buildFileManager },
   editor:      { title:'Text Editor',    icon:'📝', w:600, h:420, builder: buildEditor      },
+  modeditor:   { title:'System Editor',  icon:'🛠', w:760, h:520, builder: buildModEditor  },
   browser:     { title:'Browser',        icon:'🌐', w:760, h:520, builder: buildBrowser     },
   software:    { title:'Software Store', icon:'🛒', w:700, h:500, builder: buildSoftwareStore },
+  hardware:    { title:'Hardware Builder', icon:'🧩', w:700, h:520, builder: buildHardwareBuilder },
   calculator:  { title:'Calculator',     icon:'🧮', w:360, h:420, builder: buildCalculator  },
   notepad:     { title:'Notepad',        icon:'📒', w:560, h:420, builder: buildNotepad     },
   sysmon:      { title:'System Monitor', icon:'📊', w:500, h:480, builder: buildSysMon      },
@@ -1651,6 +1836,18 @@ const SYSFILES = {
   'hosts':         '127.0.0.1 localhost\n10.0.0.1 gateway',
   'cron.dat':      '*/5 * * * * /usr/bin/heartbeat',
   'passwd':        'root:x:0:0:root\nagent:x:1001:1001',
+  'hardware.txt':  'Your hardware configuration is stored in TSCPP hardware state. Use the hardware builder app to upgrade components.\n',
+  'device-tree.txt':'CPU=Unknown\nGPU=Unknown\nRAM=Unknown\nSTORAGE=2TB NVMe RAID-1\n',
+  'hacking-guide.txt':'Root-enabled tools: regedit, nano, restore, os-reinstall, and the mod editor.\n',
+  'buildnotes.md':'# Hardware Build Ideas\n- Upgrade GPU for graphics-intensive hacks\n- Add more RAM for stability and multitasking\n',
+  'todo.txt':     '- Secure root credentials\n- Inspect registry keys\n- Upgrade hardware\n',
+};
+
+const SYSFILE_LOCS = {
+  'kernel.cfg': '/sys', 'firewall.rules': '/sys', 'auth.db': '/sys', 'network.conf': '/sys', 'enc_keys.dat': '/sys',
+  'boot.cfg': '/sys', 'sys.log': '/var/log', 'hosts': '/etc', 'cron.dat': '/etc', 'passwd': '/etc',
+  'hardware.txt': '/home/agent', 'hacking-guide.txt': '/home/agent', 'buildnotes.md': '/home/agent',
+  'device-tree.txt': '/home/agent', 'todo.txt': '/home/agent',
 };
 
 function termNormPath(p) {
@@ -1781,12 +1978,19 @@ function performSystemReinstall() {
     'welcome.txt': 'TSCPP Terminal v11.0 — Connection required for cloud sync.',
     'note.txt': 'Protocol: SCAN -> HACK -> OVERRIDE -> TUNNEL -> EXPLOIT.',
     'readme.md': 'Welcome agent. Type HELP for command reference.',
+    'hardware.txt': 'Use the hardware builder app or terminal specs command to explore hardware synergies.',
+    'hacking-guide.txt': 'Root-enabled tools: regedit, nano, restore, os-reinstall, and the mod editor.',
+    'buildnotes.md': '# Hardware Build Ideas\n- Upgrade GPU for graphics-intensive hacks\n- Add more RAM for stability and multitasking\n',
+    'device-tree.txt': 'CPU=Unknown\nGPU=Unknown\nRAM=Unknown\nSTORAGE=2TB NVMe RAID-1\n',
+    'todo.txt': '- Secure root credentials\n- Inspect registry keys\n- Upgrade hardware\n',
   };
   const defaultDirs = ['/', '/home', '/home/agent', '/sys', '/etc', '/var', '/var/log', '/tmp', '/root'];
   const defaultLocs = {
     'kernel.cfg': '/sys', 'firewall.rules': '/sys', 'auth.db': '/sys', 'network.conf': '/sys', 'enc_keys.dat': '/sys',
     'boot.cfg': '/sys', 'sys.log': '/var/log', 'hosts': '/etc', 'cron.dat': '/etc', 'passwd': '/etc',
     'welcome.txt': '/home/agent', 'note.txt': '/home/agent', 'readme.md': '/home/agent',
+    'hardware.txt': '/home/agent', 'hacking-guide.txt': '/home/agent', 'buildnotes.md': '/home/agent',
+    'device-tree.txt': '/home/agent', 'todo.txt': '/home/agent',
   };
   const defaultHealth = {
     'HKEY_AGENT\\Terminal': true,
@@ -1808,6 +2012,9 @@ function performSystemReinstall() {
   files = defaultFiles;
   dirs = defaultDirs;
   fileLocs = defaultLocs;
+  fileLocs['hardware.txt'] = '/home/agent';
+  fileLocs['hacking-guide.txt'] = '/home/agent';
+  fileLocs['buildnotes.md'] = '/home/agent';
   registry = buildDefaultRegistry();
   sysHealth = defaultHealth;
   software = [];
@@ -1844,8 +2051,10 @@ function performSystemReinstall() {
   LS.setItem('tscpp_software', '[]');
   LS.setItem('tscpp_macros', '{}');
   LS.setItem('tscpp_tutorials', '{}');
+  LS.setItem('tscpp_mods', '{}');
   LS.setItem('tscpp_master_key', 'TSCPP-1993');
   LS.setItem('tscpp_root_key', 'Secret@Agent983');
+  promptHardwareBuild();
   notify('OS reinstall complete. Rebooting...', 'ok', 2200);
   setTimeout(() => {
     window.location.replace(window.location.pathname + '?v=' + Date.now());
@@ -2017,6 +2226,19 @@ async function termRun(raw) {
     raw = aliased + ' ' + args.slice(1).join(' ');
     const aliasedArgs = raw.trim().split(/\s+/);
     cmd = aliasedArgs[0].toLowerCase();
+  }
+  const perf = getHardwarePerformance();
+  const lag = perf.delay * 120;
+  if (lag) await new Promise(res => setTimeout(res, lag));
+  if (perf.unstable && Math.random() < 0.1) { termPrint('SYSTEM WARNING: Low hardware performance caused a command timeout. Retry when the system is stable.', 'warn'); return; }
+  if (perf.memPressure && Math.random() < 0.08) { termPrint('SYSTEM WARNING: Memory pressure is delaying execution.', 'warn'); }
+  if (perf.artifactChance > 0 && Math.random() < perf.artifactChance) {
+    const artifact = ['VERTICAL SCREEN GLITCH', 'GPU ARTIFACT', 'CPU THROTTLE FAULT', 'MEMORY CORRUPTION', 'SYSTEM NOISE'][randRange(0,4)];
+    termPrint(`HARDWARE DEFECT: ${artifact} detected. Output may be corrupted.`, 'warn');
+    if (Math.random() < 0.25) {
+      termPrint('SYSTEM FAILURE: command output corrupted by hardware defects.', 'err');
+      return;
+    }
   }
   termPrint(termPromptText() + ' ' + raw, 'echo');
 
@@ -2255,6 +2477,8 @@ function fmRender() {
     return parent === fmCwd;
   });
   const dfiles = Object.keys(files).filter(f => (fileLocs[f]||'/home/agent') === fmCwd);
+  const sysFiles = Object.keys(SYSFILES).filter(f => !(f in files)).filter(f => (fileLocs[f] || SYSFILE_LOCS[f] || '/home/agent') === fmCwd);
+  const allFiles = dfiles.concat(sysFiles);
 
   const sidebar = document.getElementById('fm-sidebar');
   if (sidebar) {
@@ -2272,18 +2496,19 @@ function fmRender() {
       <div class="fm-file-size">DIR</div>
     </div>`;
   });
-  dfiles.forEach(f => {
+  allFiles.forEach(f => {
     const icon = f.endsWith('.txt')||f.endsWith('.md')?'📄':f.endsWith('.cfg')||f.endsWith('.conf')?'⚙':f.endsWith('.log')?'📋':f.endsWith('.dat')||f.endsWith('.db')?'🗄':'📄';
     const isSys = f in SYSFILES;
+    const size = isSys ? SYSFILES[f].length : files[f]?.length || 0;
     html += `<div class="fm-file-item${fmSelected===f?' selected':''}" onclick="fmSelect('${f}')" ondblclick="fmOpenFile('${f}')" title="${f}">
       <div class="fm-file-icon">${icon}</div>
       <div class="fm-file-name" style="${isSys?'color:var(--amber)':''}">${f}</div>
-      <div class="fm-file-size">${files[f]?.length||0}B</div>
+      <div class="fm-file-size">${size}B</div>
     </div>`;
   });
   html += '</div>';
   main.innerHTML = html;
-  if (status) status.textContent = `${fmCwd} — ${subDirs.length} dirs, ${dfiles.length} files`;
+  if (status) status.textContent = `${fmCwd} — ${subDirs.length} dirs, ${allFiles.length} files`;
 }
 
 function fmNav(path) {
@@ -2305,7 +2530,9 @@ function fmSelect(f) {
   fmSelected = f;
   fmRender();
   const status = document.getElementById('fm-status');
-  if (status && files[f]) status.textContent = `${f} — ${files[f].length}B — ${fileLocs[f]||'/home/agent'}`;
+  if (!status) return;
+  if (files[f]) status.textContent = `${f} — ${files[f].length}B — ${fileLocs[f]||'/home/agent'}`;
+  else if (f in SYSFILES) status.textContent = `${f} — ${SYSFILES[f].length}B — ${fileLocs[f] || SYSFILE_LOCS[f] || '/home/agent'}`;
 }
 
 function fmOpenFile(f) {
@@ -2407,7 +2634,7 @@ function editorLoadFile(name) {
   const mod = document.getElementById('ed-modified');
   if (!ta) return;
   editorFile = name;
-  editorOriginal = files[name] || '';
+  editorOriginal = files[name] !== undefined ? files[name] : (SYSFILES[name] || '');
   ta.value = editorOriginal;
   if (fn) fn.textContent = name;
   if (mod) mod.textContent = '';
@@ -2420,7 +2647,7 @@ function editorSave() {
   if (!ta || !editorFile) { notify('No file open', 'warn'); return; }
   if (editorFile in SYSFILES && !termIsAdmin) { notify('ROOT required to save system files', 'err'); return; }
   files[editorFile] = ta.value;
-  fileLocs[editorFile] = fileLocs[editorFile] || '/home/agent';
+  fileLocs[editorFile] = fileLocs[editorFile] || SYSFILE_LOCS[editorFile] || '/home/agent';
   LS.setItem('tscpp_files', JSON.stringify(files));
   LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
   editorOriginal = ta.value;
@@ -2495,6 +2722,132 @@ function initEditor() {
   });
 }
 
+function ensureRootAccess() {
+  if (isAdmin) return true;
+  const key = prompt('ROOT access required. Enter root key:');
+  if (key === rootKey) {
+    isAdmin = true;
+    termUpdatePrompt();
+    notify('ROOT access granted', 'ok');
+    modUpdateStatus();
+    return true;
+  }
+  notify('Root access denied', 'err');
+  return false;
+}
+
+function modUpdateStatus() {
+  const status = document.getElementById('modeditor-status');
+  if (status) status.textContent = isAdmin ? 'ROOT access granted' : 'ROOT required';
+}
+
+function buildModEditor() {
+  return `<div class="app-modeditor" id="modeditor-app" style="display:flex;flex-direction:column;height:100%;background:var(--surface);">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--border);background:var(--surface2);">
+      <span style="font-family:Orbitron,monospace;font-size:11px;color:var(--amber);letter-spacing:2px;">SYSTEM EDITOR</span>
+      <button class="ed-btn" onclick="modNew()">NEW MOD</button>
+      <button class="ed-btn" onclick="modSave()">SAVE MOD</button>
+      <button class="ed-btn" onclick="modRun()">RUN MOD</button>
+      <button class="ed-btn" onclick="modReset()">RESET MODS</button>
+      <span id="modeditor-status" style="margin-left:auto;font-size:11px;color:var(--text-mute);">ROOT required</span>
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <div style="width:260px;border-right:1px solid var(--border);background:var(--surface2);overflow:auto;">
+        <div style="padding:10px;font-size:12px;color:var(--text-mute);">Saved Mods</div>
+        <div id="mod-list" style="display:flex;flex-direction:column;gap:4px;padding:8px;"></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;">
+        <input id="mod-name" class="ed-body" style="margin:10px;width:calc(100% - 20px);height:28px;font-size:12px;" placeholder="Mod name">
+        <textarea id="mod-code" class="ed-body" spellcheck="false" style="flex:1;margin:0 10px 10px 10px;resize:none;" placeholder="// Enter system-level JS code here"></textarea>
+        <div style="padding:10px;font-size:11px;color:var(--text-mute);line-height:1.6;">
+          <strong>Warning:</strong> this editor injects code directly into the desktop environment. Bad scripts can break the system or corrupt saved state.
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderModList() {
+  const list = document.getElementById('mod-list');
+  if (!list) return;
+  const names = Object.keys(mods).sort();
+  list.innerHTML = names.map(name =>
+    `<div class="rg-mini-val-row" style="cursor:pointer;" onclick="modLoad('${name}')">${name}</div>`
+  ).join('') || '<div style="padding:8px;font-size:10px;color:var(--text-mute);">No mods available</div>';
+}
+
+function modLoad(name) {
+  if (!ensureRootAccess()) return;
+  const code = mods[name] || '';
+  const input = document.getElementById('mod-name');
+  const ta = document.getElementById('mod-code');
+  if (input) input.value = name;
+  if (ta) ta.value = code;
+  notify(`Loaded mod ${name}`, 'ok');
+}
+
+function modNew() {
+  if (!ensureRootAccess()) return;
+  const name = prompt('New mod name:', `mod-${Date.now()}.js`);
+  if (!name) return;
+  mods[name] = '';
+  LS.setItem('tscpp_mods', JSON.stringify(mods));
+  renderModList();
+  modLoad(name);
+}
+
+function modSave() {
+  if (!ensureRootAccess()) return;
+  const input = document.getElementById('mod-name');
+  const ta = document.getElementById('mod-code');
+  const name = input?.value.trim();
+  const code = ta?.value || '';
+  if (!name) { notify('Enter a mod name', 'warn'); return; }
+  mods[name] = code;
+  LS.setItem('tscpp_mods', JSON.stringify(mods));
+  renderModList();
+  notify(`Saved mod ${name}`, 'ok');
+}
+
+function modRun() {
+  if (!ensureRootAccess()) return;
+  const ta = document.getElementById('mod-code');
+  const code = ta?.value || '';
+  if (!code) { notify('No code to run', 'warn'); return; }
+  try {
+    const wrapper = new Function('files','dirs','fileLocs','registry','sysHealth','software','hardware','notify','reloadShared','validateSystemState','setLS','LS','isAdmin','openApp','createWindow','termPrint','window',code);
+    wrapper(files, dirs, fileLocs, registry, sysHealth, software, hardware, notify, reloadShared, validateSystemState, setLS, LS, isAdmin, openApp, createWindow, termPrint, window);
+    notify('Mod executed', 'ok');
+  } catch (e) {
+    notify('Mod failed: ' + (e?.message || 'Unknown error'), 'err');
+  }
+}
+
+function modReset() {
+  if (!ensureRootAccess()) return;
+  if (!confirm('Reset all saved mods?')) return;
+  mods = {};
+  LS.setItem('tscpp_mods', JSON.stringify(mods));
+  renderModList();
+  const name = document.getElementById('mod-name');
+  const code = document.getElementById('mod-code');
+  if (name) name.value = '';
+  if (code) code.value = '';
+  notify('Mod storage cleared', 'ok');
+}
+
+function initModEditor() {
+  const ta = document.getElementById('mod-code');
+  if (!ta || ta.dataset.init) return;
+  ta.dataset.init = '1';
+  renderModList();
+  ta.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); modSave(); }
+    if (e.key === 'Tab') { e.preventDefault(); const s=ta.selectionStart; ta.value = ta.value.substring(0,s) + '  ' + ta.value.substring(ta.selectionEnd); ta.selectionStart = ta.selectionEnd = s + 2; }
+  });
+  modUpdateStatus();
+}
+
 /* ── SYSTEM MONITOR ──────────────────────────────────────────────────────── */
 function buildSysMon() {
   return `<div class="app-sysmon" id="sysmon-app">
@@ -2508,13 +2861,17 @@ function buildSysMon() {
 
 function sysmonRefresh() {
   reloadShared();
+  const perf = getHardwarePerformance();
   const el = document.getElementById('sysmon-content');
   if (!el) return;
-  const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu) : null;
-  const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu) : null;
-  const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram) : null;
-  const cpuLoad = randRange(15,85), memLoad = randRange(30,75), diskLoad = randRange(5,40);
-  const damaged = Object.values(sysHealth).filter(v=>!v).length;
+  const cpu = hardware ? HW_CATALOG.cpu.find(c => c.id === hardware.cpu) : null;
+  const gpu = hardware ? HW_CATALOG.gpu.find(g => g.id === hardware.gpu) : null;
+  const ram = hardware ? HW_CATALOG.ram.find(r => r.id === hardware.ram) : null;
+  const cpuLoad = Math.min(96, Math.max(14, Math.round(35 + (60 - perf.score) * 0.45 + randRange(-8, 8))));
+  const memLoad = Math.min(98, Math.max(22, Math.round(28 + Math.max(0, 16 - perf.ramGB) * 3 + (perf.cpuBottleneck ? 4 : 0) + randRange(-7, 7))));
+  const diskLoad = Math.min(94, Math.max(12, Math.round(18 + (perf.score < 40 ? 16 : 0) + (perf.memPressure ? 10 : 0) + randRange(-6, 6))));
+  const damaged = Object.values(sysHealth).filter(v => !v).length;
+  const statusText = perf.unstable ? 'UNSTABLE' : perf.score < 45 ? 'DEGRADED' : perf.score < 60 ? 'MODERATE' : 'STABLE';
 
   el.innerHTML = `
     <div class="sm-block">
@@ -2536,6 +2893,14 @@ function sysmonRefresh() {
         <div class="sm-bar-label"><span>Disk I/O</span><span>${diskLoad}%</span></div>
         <div class="sm-bar"><div class="sm-bar-fill" style="width:${diskLoad}%"></div></div>
       </div>
+    </div>
+    <div class="sm-block">
+      <div class="sm-block-title">PERFORMANCE STATUS</div>
+      <div class="sm-stat-row"><span class="sm-stat-key">Grade</span><span class="sm-stat-val ${perf.score<55?'warn':'ok'}">${perf.grade}</span></div>
+      <div class="sm-stat-row"><span class="sm-stat-key">Score</span><span class="sm-stat-val ${perf.score<40?'err':perf.score<55?'warn':'ok'}">${perf.score}%</span></div>
+      <div class="sm-stat-row"><span class="sm-stat-key">System State</span><span class="sm-stat-val ${perf.unstable?'err':perf.score<55?'warn':'ok'}">${statusText}</span></div>
+      <div class="sm-stat-row"><span class="sm-stat-key">Defect Risk</span><span class="sm-stat-val ${perf.defectRisk>50?'err':perf.defectRisk>25?'warn':'ok'}">${perf.defectRisk}%</span></div>
+      ${perf.warnings.map(msg => `<div style="font-size:11px;color:${perf.unstable?'var(--red)':perf.score<55?'var(--amber)':'var(--green)'};margin-top:4px;">${msg}</div>`).join('')}
     </div>
     <div class="sm-block">
       <div class="sm-block-title">SYSTEM HEALTH</div>
@@ -2567,9 +2932,15 @@ function buildRegistry() {
       <span style="font-family:Orbitron,monospace;font-size:9px;color:var(--amber);letter-spacing:2px;">REGISTRY</span>
       <input class="rg-mini-path" id="rg-path-disp" readonly value="HKEY_SYSTEM">
       <button class="fm-nav-btn" onclick="rgAddKey()">+ Key</button>
+      <button class="fm-nav-btn" onclick="rgRenameKey()">✎ Rename</button>
+      <button class="fm-nav-btn" onclick="rgDuplicateKey()">⎘ Duplicate</button>
       <button class="fm-nav-btn" onclick="rgDeleteKey()">🗑 Key</button>
       <button class="fm-nav-btn" onclick="rgAddValue()">+ Value</button>
+      <button class="fm-nav-btn" onclick="rgRenameValue()">✎ Rename</button>
+      <button class="fm-nav-btn" onclick="rgDuplicateValue()">⎘ Duplicate</button>
       <button class="fm-nav-btn" onclick="rgDeleteValue()">🗑 Value</button>
+      <button class="fm-nav-btn" onclick="rgExportRegistry()">⇪ Export</button>
+      <button class="fm-nav-btn" onclick="rgImportRegistry()">⇩ Import</button>
     </div>
     <div class="rg-mini-body">
       <div class="rg-mini-tree" id="rg-tree"></div>
@@ -2685,6 +3056,95 @@ function rgDeleteValue() {
   rgSelectKey(rgCurHive, rgCurKey);
   validateSystemState();
   notify(`Value ${name} deleted`, 'ok');
+}
+
+function rgRenameValue() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  const oldName = prompt('Rename value:', '');
+  if (!oldName) return;
+  if (!registry?.[rgCurHive]?.[rgCurKey]?.[oldName]) { notify('Value not found', 'err'); return; }
+  const newName = prompt('New value name:', oldName);
+  if (!newName || newName.trim() === oldName) return;
+  if (registry[rgCurHive][rgCurKey][newName]) { notify('Target value already exists', 'warn'); return; }
+  registry[rgCurHive][rgCurKey][newName] = registry[rgCurHive][rgCurKey][oldName];
+  delete registry[rgCurHive][rgCurKey][oldName];
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgSelectKey(rgCurHive, rgCurKey);
+  validateSystemState();
+  notify(`Renamed value ${oldName} to ${newName}`, 'ok');
+}
+
+function rgDuplicateValue() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  const name = prompt('Value name to duplicate:', '');
+  if (!name) return;
+  if (!registry?.[rgCurHive]?.[rgCurKey]?.[name]) { notify('Value not found', 'err'); return; }
+  const copy = prompt('Duplicate value as:', `${name}_copy`);
+  if (!copy) return;
+  if (registry[rgCurHive][rgCurKey][copy]) { notify('Target value already exists', 'warn'); return; }
+  registry[rgCurHive][rgCurKey][copy] = JSON.parse(JSON.stringify(registry[rgCurHive][rgCurKey][name]));
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgSelectKey(rgCurHive, rgCurKey);
+  validateSystemState();
+  notify(`Duplicated value ${name} to ${copy}`, 'ok');
+}
+
+function rgRenameKey() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  const name = prompt('Rename key to:', rgCurKey);
+  if (!name || name.trim() === rgCurKey) return;
+  if (registry[rgCurHive][name]) { notify('Target key already exists', 'warn'); return; }
+  registry[rgCurHive][name] = registry[rgCurHive][rgCurKey];
+  delete registry[rgCurHive][rgCurKey];
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgCurKey = name;
+  rgBuild();
+  rgSelectKey(rgCurHive, rgCurKey);
+  validateSystemState();
+  notify(`Renamed ${rgCurHive}\\${rgCurKey}`, 'ok');
+}
+
+function rgDuplicateKey() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  const name = prompt('Duplicate key as:', `${rgCurKey}_copy`);
+  if (!name) return;
+  if (registry[rgCurHive][name]) { notify('Target key already exists', 'warn'); return; }
+  registry[rgCurHive][name] = JSON.parse(JSON.stringify(registry[rgCurHive][rgCurKey]));
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgBuild();
+  notify(`Duplicated ${rgCurHive}\\${rgCurKey} to ${name}`, 'ok');
+}
+
+function rgExportRegistry() {
+  const data = JSON.stringify(registry, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(data).then(() => notify('Registry JSON copied to clipboard', 'ok'), () => alert(data));
+  } else {
+    alert(data);
+  }
+}
+
+function rgImportRegistry() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  const payload = prompt('Paste registry JSON to import:');
+  if (!payload) return;
+  try {
+    const parsed = JSON.parse(payload);
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid registry object');
+    registry = parsed;
+    LS.setItem('tscpp_registry', JSON.stringify(registry));
+    rgCurHive = null;
+    rgCurKey = null;
+    rgBuild();
+    validateSystemState();
+    notify('Registry imported successfully', 'ok');
+  } catch (e) {
+    notify('Import failed: ' + e.message, 'err');
+  }
 }
 
 function rgEditInline(hive, key, name) {
@@ -3010,6 +3470,8 @@ const appInitQueue = {
   editor:      () => initEditor(),
   browser:     () => browserNavigate('home'),
   software:    () => renderSoftwareStore(),
+  hardware:    () => {},
+  modeditor:   () => initModEditor(),
   calculator:  () => {},
   notepad:     () => initNotepad(),
   sysmon:      () => { sysmonRefresh(); },
