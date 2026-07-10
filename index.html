@@ -18,6 +18,9 @@
   --taskbar-h: 44px;
   --win-title: 30px;
   --wallpaper: radial-gradient(ellipse at 20% 50%, #0a1f0a 0%, #060a06 50%, #050808 100%);
+  --desktop-icon-size: 80px;
+  --desktop-icon-gap: 8px;
+  --desktop-padding: 16px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -115,17 +118,24 @@ body {
   pointer-events: none;
 }
 
-/* Desktop Icons */
+/* Desktop Icons - Windows-style auto-column layout */
 #desktop-icons {
-  position: absolute; top: 16px; left: 16px;
-  display: flex; flex-direction: column; gap: 8px;
+  position: absolute; top: var(--desktop-padding); left: var(--desktop-padding);
+  display: flex; flex-direction: column; flex-wrap: wrap;
+  gap: var(--desktop-icon-gap);
   z-index: 2;
+  height: calc(100% - var(--desktop-padding) * 2);
+  align-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+#desktop-icons::-webkit-scrollbar { display: none; }
 .desk-icon {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 8px 6px; width: 80px; cursor: pointer;
+  padding: 8px 6px; width: var(--desktop-icon-size); cursor: pointer;
   border: 1px solid transparent; border-radius: 2px;
   transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
 }
 .desk-icon:hover { background: rgba(0,255,65,0.07); border-color: var(--border); }
 .desk-icon.selected { background: rgba(0,255,65,0.12); border-color: var(--green-dark); }
@@ -142,6 +152,62 @@ body {
   position: absolute; top: 16px; right: 16px;
   display: flex; flex-direction: column; gap: 8px; z-index: 2;
 }
+
+/* ── BSOD (Blue Screen of Death) ─────────────────────────────────────────── */
+#bsod-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0000aa;
+  display: none; flex-direction: column;
+  align-items: flex-start; justify-content: flex-start;
+  padding: 60px 80px;
+  font-family: 'Share Tech Mono', monospace;
+  color: #fff;
+  cursor: default;
+}
+#bsod-overlay.active { display: flex; }
+.bsod-title { font-size: 48px; font-weight: 700; margin-bottom: 20px; letter-spacing: 2px; }
+.bsod-body { font-size: 14px; line-height: 1.8; max-width: 700px; margin-bottom: 30px; }
+.bsod-body p { margin-bottom: 12px; }
+.bsod-code { background: rgba(255,255,255,0.1); padding: 12px 16px; font-size: 13px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2); }
+.bsod-progress { width: 200px; height: 1px; background: rgba(255,255,255,0.3); margin-top: 20px; }
+.bsod-prog-fill { height: 100%; background: #fff; width: 0; animation: bsod-progress 4s linear forwards; }
+@keyframes bsod-progress { 0% { width: 0%; } 100% { width: 100%; } }
+.bsod-footer { margin-top: 30px; font-size: 11px; opacity: 0.7; }
+
+/* ── ALT+TAB SWITCHER ────────────────────────────────────────────────────── */
+#alttab-overlay {
+  position: fixed; inset: 0; z-index: 9998;
+  background: rgba(0,0,0,0.6);
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#alttab-overlay.active { display: flex; }
+#alttab-bar {
+  display: flex; gap: 8px; padding: 16px 20px;
+  background: rgba(8,14,8,0.95);
+  border: 1px solid var(--border2);
+  max-width: 80vw; overflow-x: auto;
+}
+.alttab-item {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 12px; border: 1px solid transparent;
+  min-width: 80px; cursor: pointer;
+  transition: all 0.1s;
+}
+.alttab-item.active { border-color: var(--green-dim); background: rgba(0,255,65,0.1); }
+.alttab-item-icon { font-size: 24px; }
+.alttab-item-title { font-size: 9px; color: var(--text-dim); text-align: center; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── SNAP INDICATOR ──────────────────────────────────────────────────────── */
+#snap-indicator {
+  position: fixed; z-index: 9997;
+  border: 2px solid var(--green-dim);
+  background: rgba(0,255,65,0.05);
+  pointer-events: none;
+  display: none;
+  transition: all 0.08s;
+}
+#snap-indicator.active { display: block; }
 
 /* ── TASKBAR ──────────────────────────────────────────────────────────────── */
 #taskbar {
@@ -673,11 +739,68 @@ body {
   <div class="ctx-item" onclick="cycleWallpaper();hideCtx()">🖼 Change Wallpaper</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" onclick="refreshDesktop();hideCtx()">↺ Refresh</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="showBSOD();hideCtx()">💀 Trigger BSOD</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="showWebShortcutDialog();hideCtx()">🔗 Add Web Shortcut</div>
 </div>
 
+<!-- Web Shortcut Creator Dialog -->
+<div id="web-shortcut-dialog" style="display:none;position:fixed;inset:0;z-index:960;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border2);width:420px;max-height:80vh;display:flex;flex-direction:column;">
+    <div style="background:var(--green-dark);padding:12px 16px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:18px;">🔗</span>
+      <span style="font-family:Orbitron,monospace;font-size:12px;color:var(--green);letter-spacing:2px;">CREATE WEB SHORTCUT</span>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:10px;color:var(--text-mute);display:block;margin-bottom:4px;">SHORTCUT NAME</label>
+        <input id="ws-name" class="set-input" style="width:100%;" placeholder="e.g. My Website" value="">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text-mute);display:block;margin-bottom:4px;">WEBSITE URL</label>
+        <input id="ws-url" class="set-input" style="width:100%;" placeholder="https://example.com" value="https://">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text-mute);display:block;margin-bottom:4px;">ICON (emoji or text, max 2 chars)</label>
+        <input id="ws-icon" class="set-input" style="width:80px;" placeholder="🌐" value="🌐" maxlength="2">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--text-mute);display:block;margin-bottom:4px;">DESCRIPTION (optional)</label>
+        <input id="ws-desc" class="set-input" style="width:100%;" placeholder="A useful website" value="">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="set-btn" style="flex:1;" onclick="createWebShortcut()">CREATE SHORTCUT</button>
+        <button class="set-btn danger" style="flex:1;" onclick="closeWebShortcutDialog()">CANCEL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BSOD Overlay -->
+<div id="bsod-overlay">
+  <div class="bsod-title">☠</div>
+  <div class="bsod-body">
+    <p>A fatal exception 0x0D has occurred.</p>
+    <p>TSCPP-OS has encountered a critical system error and needs to restart.</p>
+    <p>The system has been shut down to prevent further damage to your hardware configuration.</p>
+  </div>
+  <div class="bsod-code" id="bsod-code">*** STOP: 0x0000000D (0x00000000, 0x00000000, 0x00000000, 0x00000000)</div>
+  <div class="bsod-progress"><div class="bsod-prog-fill"></div></div>
+  <div class="bsod-footer" id="bsod-footer">Collecting error information and preparing system restart...</div>
+</div>
+
+<!-- Alt+Tab Switcher -->
+<div id="alttab-overlay">
+  <div id="alttab-bar"></div>
+</div>
+
+<!-- Snap Indicator -->
+<div id="snap-indicator"></div>
+
 <script>
-const TSCPP_DESKTOP_VERSION = '5.2.1';
-const TSCPP_DESKTOP_DATE    = '2026-07-09';
+const TSCPP_DESKTOP_VERSION = '5.3.0';
+const TSCPP_DESKTOP_DATE    = '2026-07-10';
 
 function refreshVersionLabels() {
   const hint = document.getElementById('ls-hint');
@@ -690,6 +813,25 @@ function refreshVersionLabels() {
 refreshVersionLabels();
 
 const DESKTOP_CHANGELOG = {
+  '5.3.0': {
+    date: '2026-7-10',
+    sections: [
+      { type:'feat', label:'NEW FEATURES', items:[
+        'Desktop icons now auto-arrange into multiple columns like Windows — they fill down, then wrap to the next column.',
+        'Blue Screen of Death (BSOD) simulation — trigger via Start menu, right-click context menu, or Ctrl+Shift+B. Dismiss by typing CLOSE or pressing Escape.',
+        'Alt+Tab window switcher — shows all open windows for quick switching. Press Tab repeatedly while holding Alt, or click to select.',
+        'Aero Snap — drag a window to the left/right edge to snap it to half-screen, or to the top to maximize. Drag away to restore.',
+        'Double-click the titlebar to maximize/restore a window.',
+        'Windows now resize from all edges, not just bottom-right corner.',
+      ]},
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Desktop icons auto-reflow when window resizes.',
+        'Context menu now includes "Trigger BSOD" option.',
+        'Better window shadows and focus indicators.',
+        'Improved login screen with more responsive layout.',
+      ]},
+    ],
+  },
   '5.2.1': {
     date: '2026-7-9',
     sections: [
@@ -953,27 +1095,72 @@ const getLS  = (k, fb='null') => { try { return JSON.parse(LS.getItem(k) || fb);
 const setLS  = (k, v) => LS.setItem(k, JSON.stringify(v));
 
 /* ── SHARED STATE (mirrors terminal's localStorage) ─────────────────────── */
-let files       = getLS('tscpp_files') || {};
+function getDefaultFiles() {
+  return {
+    'kernel.cfg': 'KERNEL_VER=6.5.0-tscpp\nSCHED=CFS\nPREEMPT=FULL\nHZ=1000\nNOCADAPT=0',
+    'firewall.rules': 'POLICY=DROP\nALLOW 22/tcp\nALLOW 443/tcp\nALLOW 53/udp\nDENY ALL',
+    'auth.db': 'root:$2b$12$TSCPP_HASH_A1B2C3\nagent:$2b$12$TSCPP_HASH_D4E5F6\n[EOF]',
+    'network.conf': 'IFACE=eth0\nGATEWAY=10.0.0.1\nDNS=8.8.8.8\nMTU=1500\nDUPLEX=FULL',
+    'enc_keys.dat': 'AES256_KEY=0xDEADBEEFCAFEBABE\nIV=0xFEEDFACE',
+    'boot.cfg': 'BOOTLOADER=GRUB2\nTIMEOUT=3\nDEFAULT=tscpp-os\nSECURE_BOOT=ON',
+    'sys.log': '[BOOT] System started\n[INFO] All modules loaded',
+    'hosts': '127.0.0.1 localhost\n10.0.0.1 gateway',
+    'cron.dat': '*/5 * * * * /usr/bin/heartbeat',
+    'passwd': 'root:x:0:0:root\nagent:x:1001:1001',
+    'hardware.txt': 'Your hardware configuration is stored in TSCPP hardware state. Use the hardware builder app to upgrade components.\n',
+    'device-tree.txt': 'CPU=Unknown\nGPU=Unknown\nRAM=Unknown\nSTORAGE=2TB NVMe RAID-1\n',
+    'hacking-guide.txt': 'Root-enabled tools: regedit, nano, restore, os-reinstall, and the mod editor.\n',
+    'buildnotes.md': '# Hardware Build Ideas\n- Upgrade GPU for graphics-intensive hacks\n- Add more RAM for stability and multitasking\n',
+    'todo.txt': '- Secure root credentials\n- Inspect registry keys\n- Upgrade hardware\n',
+  };
+}
+
+function getDefaultDirs() {
+  return ['/', '/home', '/home/agent', '/sys', '/etc', '/var', '/var/log', '/tmp', '/root'];
+}
+
+function getDefaultFileLocs() {
+  return {
+    'kernel.cfg': '/sys', 'firewall.rules': '/sys', 'auth.db': '/sys', 'network.conf': '/sys', 'enc_keys.dat': '/sys',
+    'boot.cfg': '/sys', 'sys.log': '/var/log', 'hosts': '/etc', 'cron.dat': '/etc', 'passwd': '/etc',
+    'hardware.txt': '/home/agent', 'hacking-guide.txt': '/home/agent', 'buildnotes.md': '/home/agent',
+    'device-tree.txt': '/home/agent', 'todo.txt': '/home/agent',
+  };
+}
+
+function seedInitialState() {
+  const hasFiles = LS.getItem('tscpp_files');
+  if (!hasFiles) {
+    LS.setItem('tscpp_files', JSON.stringify(getDefaultFiles()));
+    LS.setItem('tscpp_dirs', JSON.stringify(getDefaultDirs()));
+    LS.setItem('tscpp_locs', JSON.stringify(getDefaultFileLocs()));
+    LS.setItem('tscpp_registry', JSON.stringify(buildDefaultRegistry()));
+  }
+}
+
+seedInitialState();
+
+let files       = getLS('tscpp_files') || getDefaultFiles();
 let sysHealth   = getLS('tscpp_health') || {};
-let registry    = getLS('tscpp_registry') || {};
+let registry    = getLS('tscpp_registry') || buildDefaultRegistry();
 let hardware    = getLS('tscpp_hardware');
 let software    = getLS('tscpp_software') || [];
 let mods        = getLS('tscpp_mods') || {};
-let dirs        = getLS('tscpp_dirs') || ['/','/home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
-let fileLocs    = getLS('tscpp_locs') || {};
+let dirs        = getLS('tscpp_dirs') || getDefaultDirs();
+let fileLocs    = getLS('tscpp_locs') || getDefaultFileLocs();
 let masterKey   = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
 let rootKey     = LS.getItem('tscpp_root_key')   || 'Secret@Agent983';
 let isAdmin     = false;
 
 function reloadShared() {
-  files     = getLS('tscpp_files') || {};
+  files     = getLS('tscpp_files') || getDefaultFiles();
   sysHealth = getLS('tscpp_health') || {};
-  registry  = getLS('tscpp_registry') || {};
+  registry  = getLS('tscpp_registry') || buildDefaultRegistry();
   hardware  = getLS('tscpp_hardware');
   software  = getLS('tscpp_software') || [];
   mods      = getLS('tscpp_mods') || {};
-  dirs      = getLS('tscpp_dirs') || ['/','/home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
-  fileLocs  = getLS('tscpp_locs') || {};
+  dirs      = getLS('tscpp_dirs') || getDefaultDirs();
+  fileLocs  = getLS('tscpp_locs') || getDefaultFileLocs();
   masterKey = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
   rootKey   = LS.getItem('tscpp_root_key')   || 'Secret@Agent983';
   validateSystemState();
@@ -1298,6 +1485,12 @@ function addTaskbarBtn(wobj) {
 }
 
 function setupDrag(winEl, handle, wobj) {
+  // Double-click titlebar to maximize/restore
+  handle.addEventListener('dblclick', e => {
+    if (e.target.classList.contains('win-btn')) return;
+    maximizeWin(wobj.id);
+  });
+  
   handle.addEventListener('mousedown', e => {
     if (e.target.classList.contains('win-btn')) return;
     if (wobj.maximized) return;
@@ -1308,7 +1501,12 @@ function setupDrag(winEl, handle, wobj) {
       winEl.style.left = Math.max(0, Math.min(window.innerWidth-60,  mv.clientX - startX)) + 'px';
       winEl.style.top  = Math.max(0, Math.min(window.innerHeight-80, mv.clientY - startY)) + 'px';
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      // Aero Snap check on release
+      snapCheck(winEl, wobj);
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
     e.preventDefault();
@@ -3378,6 +3576,527 @@ function settingsChangeKey(type) {
   else { rootKey = newKey; LS.setItem('tscpp_root_key', newKey); }
   notify(`${type.toUpperCase()} key changed`, 'ok');
 }
+
+/* ── BSOD — REAL SYSTEM DIAGNOSTIC ──────────────────────────────────────── */
+function systemDiagnostic() {
+  const issues = [];
+  const warnings = [];
+  const info = [];
+  
+  // 1. Check required system files
+  const requiredFiles = ['boot.cfg', 'auth.db', 'network.conf', 'kernel.cfg', 'firewall.rules', 'hosts'];
+  requiredFiles.forEach(f => {
+    if (!files[f] && !SYSFILES[f]) {
+      issues.push(`CRITICAL: System file "${f}" is missing. System may not boot correctly.`);
+    } else if (!files[f] && SYSFILES[f]) {
+      info.push(`System file "${f}" exists in defaults but has not been modified.`);
+    }
+  });
+
+  // 2. Check registry integrity
+  const requiredRegKeys = [
+    ['HKEY_AGENT', 'Terminal', 'Theme'],
+    ['HKEY_AGENT', 'Terminal', 'FontSize'],
+    ['HKEY_AGENT', 'Profile', 'Username'],
+    ['HKEY_AGENT', 'Profile', 'Callsign'],
+    ['HKEY_SYSTEM', 'Boot', 'RebootTimeout'],
+    ['HKEY_SYSTEM', 'Security', 'AutoLock'],
+    ['HKEY_SYSTEM', 'Security', 'AuditLogging'],
+    ['HKEY_NETWORK', 'Firewall', 'StealthMode'],
+    ['HKEY_NETWORK', 'VPN', 'Protocol'],
+  ];
+  requiredRegKeys.forEach(([h, k, n]) => {
+    const val = registry?.[h]?.[k]?.[n];
+    if (!val) {
+      issues.push(`REGISTRY: Missing required key ${h}\\${k}\\${n}. Registry corruption detected.`);
+    } else if (val.type === 'REG_DWORD' && (typeof val.value !== 'number' || isNaN(val.value))) {
+      issues.push(`REGISTRY: ${h}\\${k}\\${n} has invalid REG_DWORD value "${val.value}".`);
+    } else if (val.type === 'REG_BOOL' && typeof val.value !== 'boolean') {
+      warnings.push(`REGISTRY: ${h}\\${k}\\${n} should be REG_BOOL but has value "${val.value}".`);
+    }
+  });
+
+  // 3. Check for orphaned file locations
+  Object.keys(fileLocs).forEach(f => {
+    if (!files[f] && !SYSFILES[f]) {
+      warnings.push(`FILESYSTEM: Orphaned location entry for "${f}" — file does not exist.`);
+    }
+  });
+
+  // 4. Check directory integrity
+  const requiredDirs = ['/', '/home', '/home/agent', '/sys', '/etc', '/var', '/var/log'];
+  requiredDirs.forEach(d => {
+    if (!dirs.includes(d)) {
+      issues.push(`FILESYSTEM: Required directory "${d}" is missing.`);
+    }
+  });
+
+  // 5. Check for circular directory references
+  dirs.forEach(d => {
+    if (d !== '/' && !dirs.some(p => p === d.substring(0, d.lastIndexOf('/')) || '/')) {
+      warnings.push(`FILESYSTEM: Directory "${d}" has no parent directory.`);
+    }
+  });
+
+  // 6. Hardware diagnostics
+  const perf = getHardwarePerformance();
+  if (perf.unstable) {
+    issues.push(`HARDWARE: System is critically unstable (score: ${perf.score}%). Hardware defects may cause data corruption.`);
+  }
+  if (perf.cpuBottleneck) {
+    warnings.push(`HARDWARE: CPU bottleneck detected — GPU is too powerful for the selected CPU.`);
+  }
+  if (perf.memPressure) {
+    warnings.push(`HARDWARE: Memory pressure — ${perf.ramGB}GB RAM is insufficient for current configuration.`);
+  }
+  if (perf.defectRisk > 50) {
+    issues.push(`HARDWARE: Defect risk is ${perf.defectRisk}% — hardware configuration is prone to errors.`);
+  }
+  if (!hardware) {
+    warnings.push(`HARDWARE: No hardware configuration set. System running in fallback mode.`);
+  }
+
+  // 7. Check localStorage for corruption
+  try {
+    const testKey = 'tscpp_diag_test';
+    LS.setItem(testKey, 'test');
+    if (LS.getItem(testKey) !== 'test') {
+      issues.push(`STORAGE: localStorage read/write verification failed. Data may not persist.`);
+    }
+    LS.removeItem(testKey);
+  } catch (e) {
+    issues.push(`STORAGE: localStorage is not accessible — ${e.message}`);
+  }
+
+  // 8. Check for oversized localStorage data
+  let totalSize = 0;
+  for (let i = 0; i < LS.length; i++) {
+    const key = LS.key(i);
+    if (key) {
+      const val = LS.getItem(key);
+      if (val) totalSize += key.length + val.length;
+    }
+  }
+  if (totalSize > 4 * 1024 * 1024) {
+    warnings.push(`STORAGE: localStorage is ${(totalSize / 1024 / 1024).toFixed(1)}MB — approaching 5MB limit.`);
+  }
+
+  // 9. Check for duplicate file names
+  const fileNames = Object.keys(files);
+  const dupes = fileNames.filter((f, i) => fileNames.indexOf(f) !== i);
+  if (dupes.length) {
+    issues.push(`FILESYSTEM: Duplicate file entries detected: ${dupes.join(', ')}`);
+  }
+
+  // 10. Check software catalog integrity
+  software.forEach(id => {
+    if (!SOFTWARE_CATALOG.some(pkg => pkg.id === id)) {
+      warnings.push(`SOFTWARE: Installed package "${id}" is not in the software catalog.`);
+    }
+  });
+
+  // 11. Check for undefined functions (code bugs)
+  const requiredFunctions = [
+    'openApp', 'createWindow', 'focusWindow', 'closeWin', 'minimizeWin', 'maximizeWin',
+    'fmRender', 'editorSave', 'termRun', 'sysmonRefresh', 'rgBuild', 'buildSettings',
+    'notify', 'rebootSystem', 'doLogout', 'cycleWallpaper', 'applyWallpaper',
+  ];
+  requiredFunctions.forEach(fn => {
+    if (typeof window[fn] !== 'function') {
+      issues.push(`CODE BUG: Required function "${fn}()" is not defined. This will cause runtime errors.`);
+    }
+  });
+
+  // 12. Check for undefined variables in shared state
+  if (typeof files === 'undefined') issues.push(`STATE: "files" is undefined.`);
+  if (typeof registry === 'undefined') issues.push(`STATE: "registry" is undefined.`);
+  if (typeof dirs === 'undefined') issues.push(`STATE: "dirs" is undefined.`);
+
+  // 13. Check for window manager issues
+  windows.forEach((w, i) => {
+    if (!w.el || !document.body.contains(w.el)) {
+      warnings.push(`WINDOW MGR: Window "${w.id}" (index ${i}) has a detached DOM element.`);
+    }
+    if (w.minimized && w.el && !w.el.classList.contains('minimized')) {
+      warnings.push(`WINDOW MGR: Window "${w.id}" state mismatch — marked minimized but class missing.`);
+    }
+  });
+
+  // 14. Check for missing SYSFILE_LOCS entries
+  Object.keys(SYSFILES).forEach(f => {
+    if (!SYSFILE_LOCS[f]) {
+      warnings.push(`CONFIG: System file "${f}" has no location mapping in SYSFILE_LOCS.`);
+    }
+  });
+
+  // 15. Check for duplicate directory entries
+  const dirDupes = dirs.filter((d, i) => dirs.indexOf(d) !== i);
+  if (dirDupes.length) {
+    warnings.push(`FILESYSTEM: Duplicate directory entries: ${[...new Set(dirDupes)].join(', ')}`);
+  }
+
+  // 16. Check termState integrity
+  if (termState && typeof termState.traceRisk !== 'number') {
+    warnings.push(`STATE: termState.traceRisk is not a number.`);
+  }
+
+  // 17. Check for missing app definitions
+  const desktopApps = ['terminal', 'filemanager', 'editor', 'modeditor', 'browser', 'software', 'hardware', 'calculator', 'notepad', 'sysmon', 'registry', 'settings'];
+  desktopApps.forEach(id => {
+    if (!APP_DEFS[id]) {
+      issues.push(`CONFIG: Desktop app "${id}" has no definition in APP_DEFS.`);
+    }
+  });
+
+  // 18. Check for broken changelog entries
+  Object.entries(DESKTOP_CHANGELOG).forEach(([ver, data]) => {
+    if (!data.date || !data.sections) {
+      warnings.push(`CHANGELOG: Version ${ver} has missing date or sections.`);
+    }
+  });
+
+  return { issues, warnings, info, totalSize, perf };
+}
+
+function showBSOD() {
+  const overlay = document.getElementById('bsod-overlay');
+  if (!overlay || overlay.classList.contains('active')) return;
+  
+  reloadShared();
+  const diag = systemDiagnostic();
+  const perf = diag.perf;
+  
+  // Determine stop code based on most severe issue
+  const stopCodes = [
+    { code: '0x0000000D', name: 'IRQL_NOT_LESS_OR_EQUAL' },
+    { code: '0x0000001A', name: 'MEMORY_MANAGEMENT' },
+    { code: '0x00000050', name: 'PAGE_FAULT_IN_NONPAGED_AREA' },
+    { code: '0x0000007B', name: 'INACCESSIBLE_BOOT_DEVICE' },
+    { code: '0x0000008E', name: 'KERNEL_MODE_EXCEPTION_NOT_HANDLED' },
+    { code: '0x0000007E', name: 'SYSTEM_THREAD_EXCEPTION_NOT_HANDLED' },
+    { code: '0x00000024', name: 'NTFS_FILE_SYSTEM' },
+    { code: '0x0000003B', name: 'SYSTEM_SERVICE_EXCEPTION' },
+    { code: '0x0000004E', name: 'PFN_LIST_CORRUPT' },
+    { code: '0x00000076', name: 'PROCESS_HAS_LOCKED_PAGES' },
+    { code: '0x0000009F', name: 'DRIVER_POWER_STATE_FAILURE' },
+    { code: '0x000000C5', name: 'DRIVER_CORRUPTED_EXPOOL' },
+    { code: '0x000000D1', name: 'DRIVER_IRQL_NOT_LESS_OR_EQUAL' },
+    { code: '0x000000EA', name: 'THREAD_STUCK_IN_DEVICE_DRIVER' },
+    { code: '0x00000109', name: 'CRITICAL_STRUCTURE_CORRUPTION' },
+  ];
+  
+  const severity = diag.issues.length > 5 ? 2 : diag.issues.length > 0 ? 1 : 0;
+  const stopIdx = Math.min(diag.issues.length, stopCodes.length - 1);
+  const stop = stopCodes[stopIdx] || stopCodes[0];
+  
+  // Build BSOD body with real diagnostic info
+  let bodyHTML = `<p>A fatal exception ${stop.code} (${stop.name}) has occurred.</p>`;
+  bodyHTML += `<p>TSCPP-OS has detected ${diag.issues.length} critical issue(s) and ${diag.warnings.length} warning(s) in the system.</p>`;
+  
+  if (diag.issues.length > 0) {
+    bodyHTML += `<p style="color:#ff6666;font-weight:700;">CRITICAL ISSUES:</p>`;
+    diag.issues.slice(0, 8).forEach(issue => {
+      bodyHTML += `<p style="color:#ff9999;font-size:12px;">• ${issue}</p>`;
+    });
+    if (diag.issues.length > 8) {
+      bodyHTML += `<p style="color:#ff9999;font-size:12px;">• ... and ${diag.issues.length - 8} more critical issue(s)</p>`;
+    }
+  }
+  
+  if (diag.warnings.length > 0) {
+    bodyHTML += `<p style="color:#ffcc00;font-weight:700;margin-top:8px;">WARNINGS:</p>`;
+    diag.warnings.slice(0, 5).forEach(warn => {
+      bodyHTML += `<p style="color:#ffdd66;font-size:12px;">• ${warn}</p>`;
+    });
+    if (diag.warnings.length > 5) {
+      bodyHTML += `<p style="color:#ffdd66;font-size:12px;">• ... and ${diag.warnings.length - 5} more warning(s)</p>`;
+    }
+  }
+  
+  if (diag.issues.length === 0 && diag.warnings.length === 0) {
+    bodyHTML += `<p style="color:#66ff66;">No critical issues detected. System integrity check passed.</p>`;
+    bodyHTML += `<p style="font-size:12px;">This BSOD was triggered manually for diagnostic purposes.</p>`;
+  }
+  
+  document.querySelector('#bsod-overlay .bsod-body').innerHTML = bodyHTML;
+  document.getElementById('bsod-code').textContent = `*** STOP: ${stop.code} (0x00000000, 0x00000000, 0x00000000, 0x00000000)`;
+  
+  // Footer with system info
+  const footer = document.getElementById('bsod-footer');
+  footer.innerHTML = `
+    System: TSCPP-OS v${TSCPP_DESKTOP_VERSION} | 
+    Issues: ${diag.issues.length} critical, ${diag.warnings.length} warnings | 
+    Storage: ${(diag.totalSize / 1024).toFixed(1)}KB used |
+    Hardware: ${perf.grade} (${perf.score}%) |
+    Defect Risk: ${perf.defectRisk}% |
+    Press ESC to dismiss or type CLOSE + Enter
+  `;
+  
+  overlay.classList.add('active');
+}
+
+function hideBSOD() {
+  const overlay = document.getElementById('bsod-overlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+/* ── ALT+TAB SWITCHER ────────────────────────────────────────────────────── */
+let altTabActive = false;
+let altTabIndex = 0;
+
+function showAltTab() {
+  const overlay = document.getElementById('alttab-overlay');
+  const bar = document.getElementById('alttab-bar');
+  if (!overlay || !bar) return;
+  const visibleWindows = windows.filter(w => !w.minimized);
+  if (!visibleWindows.length) return;
+  bar.innerHTML = visibleWindows.map((w, i) => 
+    `<div class="alttab-item ${i === 0 ? 'active' : ''}" data-idx="${i}" onclick="altTabSelect(${i})">
+      <div class="alttab-item-icon">${w.icon}</div>
+      <div class="alttab-item-title">${w.title}</div>
+    </div>`
+  ).join('');
+  altTabIndex = 0;
+  altTabActive = true;
+  overlay.classList.add('active');
+}
+
+function hideAltTab() {
+  const overlay = document.getElementById('alttab-overlay');
+  if (overlay) overlay.classList.remove('active');
+  altTabActive = false;
+}
+
+function altTabSelect(idx) {
+  const visibleWindows = windows.filter(w => !w.minimized);
+  if (idx >= 0 && idx < visibleWindows.length) {
+    focusWindow(visibleWindows[idx]);
+    if (visibleWindows[idx].minimized) unminimize(visibleWindows[idx]);
+  }
+  hideAltTab();
+}
+
+function altTabNext() {
+  const visibleWindows = windows.filter(w => !w.minimized);
+  if (!visibleWindows.length) { hideAltTab(); return; }
+  document.querySelectorAll('.alttab-item').forEach(el => el.classList.remove('active'));
+  altTabIndex = (altTabIndex + 1) % visibleWindows.length;
+  const items = document.querySelectorAll('.alttab-item');
+  if (items[altTabIndex]) items[altTabIndex].classList.add('active');
+}
+
+/* ── AERO SNAP ────────────────────────────────────────────────────────────── */
+const SNAP_THRESHOLD = 30;
+
+function showSnapIndicator(rect) {
+  const el = document.getElementById('snap-indicator');
+  if (!el) return;
+  if (!rect) { el.classList.remove('active'); return; }
+  Object.assign(el.style, { left: rect.x+'px', top: rect.y+'px', width: rect.w+'px', height: rect.h+'px' });
+  el.classList.add('active');
+}
+
+function snapCheck(winEl, wobj) {
+  if (wobj.maximized) return;
+  const rect = winEl.getBoundingClientRect();
+  const snapEdge = (rect.left < SNAP_THRESHOLD) ? 'left' : 
+                   (window.innerWidth - rect.right < SNAP_THRESHOLD) ? 'right' : null;
+  const snapTop = rect.top < SNAP_THRESHOLD;
+  
+  if (snapTop && snapEdge === null && rect.left > SNAP_THRESHOLD && window.innerWidth - rect.right > SNAP_THRESHOLD) {
+    // Snap to top = maximize
+    wobj.prevRect = { l: winEl.style.left, t: winEl.style.top, w: winEl.style.width, h: winEl.style.height };
+    wobj.el.classList.add('maximized'); wobj.maximized = true;
+    showSnapIndicator(null);
+    notify('Window maximized', 'ok');
+    return;
+  }
+  
+  if (snapEdge === 'left') {
+    wobj.prevRect = { l: winEl.style.left, t: winEl.style.top, w: winEl.style.width, h: winEl.style.height };
+    if (wobj.maximized) {
+      wobj.el.classList.remove('maximized'); wobj.maximized = false;
+    }
+    winEl.style.left = '0px';
+    winEl.style.width = (window.innerWidth / 2) + 'px';
+    winEl.style.top = '0px';
+    winEl.style.height = (window.innerHeight - 44) + 'px';
+    showSnapIndicator(null);
+    notify('Snapped left', 'ok');
+    return;
+  }
+  
+  if (snapEdge === 'right') {
+    wobj.prevRect = { l: winEl.style.left, t: winEl.style.top, w: winEl.style.width, h: winEl.style.height };
+    if (wobj.maximized) {
+      wobj.el.classList.remove('maximized'); wobj.maximized = false;
+    }
+    winEl.style.left = (window.innerWidth / 2) + 'px';
+    winEl.style.width = (window.innerWidth / 2) + 'px';
+    winEl.style.top = '0px';
+    winEl.style.height = (window.innerHeight - 44) + 'px';
+    showSnapIndicator(null);
+    notify('Snapped right', 'ok');
+    return;
+  }
+  
+  showSnapIndicator(null);
+}
+
+/* ── KEYBOARD SHORTCUTS ──────────────────────────────────────────────────── */
+document.addEventListener('keydown', function(e) {
+  // Ctrl+Shift+B = BSOD
+  if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+    e.preventDefault();
+    showBSOD();
+    return;
+  }
+  
+  // Escape to dismiss BSOD or Alt+Tab
+  if (e.key === 'Escape') {
+    if (document.getElementById('bsod-overlay')?.classList.contains('active')) {
+      hideBSOD();
+      return;
+    }
+    if (document.getElementById('alttab-overlay')?.classList.contains('active')) {
+      hideAltTab();
+      return;
+    }
+  }
+  
+  // Alt+Tab handling
+  if (e.altKey && e.key === 'Tab') {
+    e.preventDefault();
+    if (!altTabActive) {
+      showAltTab();
+    } else {
+      altTabNext();
+    }
+    return;
+  }
+  
+  // BSOD typing CLOSE
+  if (document.getElementById('bsod-overlay')?.classList.contains('active')) {
+    const cmd = e.key;
+    if (cmd === 'Enter') {
+      // Check if they typed CLOSE
+      const bsodEl = document.getElementById('bsod-overlay');
+      if (bsodEl.dataset.bsodBuffer && bsodEl.dataset.bsodBuffer === 'CLOSE') {
+        hideBSOD();
+        bsodEl.dataset.bsodBuffer = '';
+        return;
+      }
+      bsodEl.dataset.bsodBuffer = '';
+      return;
+    }
+    if (!bsodEl) { const bsodEl = document.getElementById('bsod-overlay'); }
+    const bsodEl = document.getElementById('bsod-overlay');
+    if (!bsodEl.dataset.bsodBuffer) bsodEl.dataset.bsodBuffer = '';
+    if (cmd >= 'A' && cmd <= 'Z') {
+      bsodEl.dataset.bsodBuffer += cmd;
+      if (bsodEl.dataset.bsodBuffer.length > 5) bsodEl.dataset.bsodBuffer = bsodEl.dataset.bsodBuffer.slice(-5);
+    }
+  }
+});
+
+/* ── WEB SHORTCUTS ───────────────────────────────────────────────────────── */
+function getWebShortcuts() {
+  return getLS('tscpp_web_shortcuts') || [];
+}
+
+function saveWebShortcuts(shortcuts) {
+  LS.setItem('tscpp_web_shortcuts', JSON.stringify(shortcuts));
+}
+
+function showWebShortcutDialog() {
+  const dialog = document.getElementById('web-shortcut-dialog');
+  if (dialog) {
+    dialog.style.display = 'flex';
+    document.getElementById('ws-name').value = '';
+    document.getElementById('ws-url').value = 'https://';
+    document.getElementById('ws-icon').value = '🌐';
+    document.getElementById('ws-desc').value = '';
+    setTimeout(() => document.getElementById('ws-name').focus(), 100);
+  }
+}
+
+function closeWebShortcutDialog() {
+  const dialog = document.getElementById('web-shortcut-dialog');
+  if (dialog) dialog.style.display = 'none';
+}
+
+function createWebShortcut() {
+  const name = document.getElementById('ws-name').value.trim();
+  let url = document.getElementById('ws-url').value.trim();
+  const icon = document.getElementById('ws-icon').value.trim() || '🌐';
+  const desc = document.getElementById('ws-desc').value.trim();
+  
+  if (!name) { notify('Please enter a shortcut name', 'warn'); return; }
+  if (!url || url === 'https://') { notify('Please enter a valid URL', 'warn'); return; }
+  
+  // Auto-add https:// if missing
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  
+  const shortcuts = getWebShortcuts();
+  const id = 'web_' + Date.now();
+  shortcuts.push({ id, name, url, icon, desc, created: Date.now() });
+  saveWebShortcuts(shortcuts);
+  
+  closeWebShortcutDialog();
+  renderWebShortcuts();
+  notify(`Web shortcut "${name}" created`, 'ok');
+}
+
+function deleteWebShortcut(id) {
+  if (!confirm('Delete this web shortcut?')) return;
+  let shortcuts = getWebShortcuts();
+  shortcuts = shortcuts.filter(s => s.id !== id);
+  saveWebShortcuts(shortcuts);
+  renderWebShortcuts();
+  notify('Web shortcut deleted', 'ok');
+}
+
+function openWebShortcut(url) {
+  window.open(url, '_blank', 'noopener,noreferrer');
+  notify('Opening website in new tab...', 'ok');
+}
+
+function renderWebShortcuts() {
+  const container = document.getElementById('desktop-icons');
+  if (!container) return;
+  
+  // Remove existing web shortcuts (they have class 'web-shortcut')
+  container.querySelectorAll('.web-shortcut').forEach(el => el.remove());
+  
+  const shortcuts = getWebShortcuts();
+  shortcuts.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'desk-icon web-shortcut';
+    div.title = s.desc || s.url;
+    div.innerHTML = `
+      <div class="desk-icon-img">${s.icon}</div>
+      <div class="desk-icon-label">${s.name}</div>
+    `;
+    div.onclick = () => selectIcon(div);
+    div.ondblclick = () => openWebShortcut(s.url);
+    // Right-click to delete
+    div.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteWebShortcut(s.id);
+    };
+    container.appendChild(div);
+  });
+}
+
+// Re-render web shortcuts when desktop starts
+const origStartDesktop = startDesktop;
+startDesktop = function() {
+  origStartDesktop();
+  renderWebShortcuts();
+};
 
 /* ── MISC HELPERS ────────────────────────────────────────────────────────── */
 function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
