@@ -1411,6 +1411,7 @@ let termState = getLS('tscpp_state') || {
 };
 let termCwd = termState.cwd || '/home/agent';
 let termIsAdmin = false;
+let termAwaitingPassword = false;
 
 function saveTermState() {
   termState.cwd = termCwd;
@@ -1447,6 +1448,10 @@ function initTerminal() {
     if (e.key === 'ArrowUp' && termHistIdx > 0) { termHistIdx--; el.value = termHistory[termHistIdx]; }
     if (e.key === 'ArrowDown') { termHistIdx < termHistory.length-1 ? termHistIdx++ : (termHistIdx=termHistory.length); el.value = termHistory[termHistIdx]||''; }
     if (e.key !== 'Enter') return;
+    if (termAwaitingPassword) {
+      e.preventDefault();
+      return;
+    }
     const cmd = el.value.trim(); el.value = '';
     if (!cmd) return;
     termHistory.push(cmd); termHistIdx = termHistory.length;
@@ -1845,10 +1850,12 @@ async function termRun(raw) {
     termPrint('Enter root key:', 'sys');
     const input = document.getElementById('term-in');
     input.type = 'password';
+    termAwaitingPassword = true;
     await new Promise(res => {
       const handler = e => {
         if (e.key !== 'Enter') return;
         const v = input.value.trim(); input.value = ''; input.type = 'text';
+        termAwaitingPassword = false;
         if (v === rootKey) { termIsAdmin=true; termUpdatePrompt(); termPrint('ROOT ACCESS GRANTED.','admin'); }
         else termPrint('AUTH_ERROR: Incorrect key.','err');
         input.removeEventListener('keydown', handler); res();
