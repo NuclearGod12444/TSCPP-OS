@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>TSCPP-OS Desktop</title>
+<link rel="icon" type="image/png" href="TSCPP.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
 
@@ -592,7 +593,7 @@ body {
     </div>
   </div>
   <div class="sm-power">
-    <div class="sm-power-btn" onclick="location.reload()">↺ REBOOT</div>
+    <div class="sm-power-btn" onclick="rebootSystem()">↺ REBOOT</div>
     <div class="sm-power-btn" onclick="doLogout()">⏻ LOCK</div>
     <div class="sm-power-btn" onclick="if(confirm('Open TSCPP Terminal app?'))window.open('TSCPP-Advanced.html')">⬛ TERMINAL</div>
   </div>
@@ -753,11 +754,42 @@ function updVerCmp(a, b) {
   return 0;
 }
 
+function rebootSystem() {
+  document.getElementById('update-overlay')?.classList.add('hidden');
+  removeTrayUpdateBadge();
+  const bootScreen = document.getElementById('boot-screen');
+  const loginScreen = document.getElementById('login-screen');
+  const desktopEl = document.getElementById('desktop');
+  const taskbarEl = document.getElementById('taskbar');
+  const bootLines = document.getElementById('boot-lines');
+  const bootFill = document.getElementById('boot-prog-fill');
+  if (bootScreen) bootScreen.classList.remove('hidden');
+  if (loginScreen) loginScreen.classList.add('hidden');
+  if (desktopEl) desktopEl.classList.add('hidden');
+  if (taskbarEl) taskbarEl.style.display = 'none';
+  if (bootLines) bootLines.innerHTML = '';
+  if (bootFill) bootFill.style.width = '0%';
+  notify('Rebooting TSCPP-OS...', 'ok', 1800);
+  setTimeout(() => {
+    try {
+      LS.setItem('tscpp_desktop_version', TSCPP_DESKTOP_VERSION);
+      LS.setItem('tscpp_desktop_last_boot', String(Date.now()));
+    } catch (e) {}
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => reg.unregister()))).catch(() => {});
+    }
+    caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key)))).catch(() => {});
+    window.location.replace(window.location.pathname + '?v=' + Date.now() + window.location.hash);
+  }, 700);
+}
+
 function updInstall() {
   LS.setItem('tscpp_desktop_version', TSCPP_DESKTOP_VERSION);
-  document.getElementById('update-overlay').classList.add('hidden');
+  LS.setItem('tscpp_desktop_update_applied', TSCPP_DESKTOP_VERSION);
+  document.getElementById('update-overlay')?.classList.add('hidden');
   removeTrayUpdateBadge();
-  notify(`TSCPP-OS updated to v${TSCPP_DESKTOP_VERSION}`, 'ok', 3500);
+  notify(`TSCPP-OS updated to v${TSCPP_DESKTOP_VERSION}`, 'ok', 2200);
+  setTimeout(() => rebootSystem(), 350);
 }
 
 function updSkip() {
