@@ -1219,6 +1219,26 @@ document.getElementById('desktop').addEventListener('mousedown', e => {
 });
 
 /* ── APPS ────────────────────────────────────────────────────────────────── */
+function buildFileManager() {
+  return `<div class="app-filemanager" style="display:flex;flex-direction:column;height:100%;background:var(--surface);">
+    <div class="fm-toolbar" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface2);">
+      <button class="fm-nav-btn" onclick="fmRefresh()">↻ Refresh</button>
+      <button class="fm-nav-btn" onclick="fmNewFile()">+ File</button>
+      <button class="fm-nav-btn" onclick="fmNewFolder()">+ Folder</button>
+      <button class="fm-nav-btn" onclick="fmDeleteSelected()">🗑 Delete</button>
+      <button class="fm-nav-btn" onclick="fmRenameSelected()">✎ Rename</button>
+      <input class="rg-mini-path" id="fm-path-input" value="/home/agent" readonly style="flex:1;min-width:180px;">
+    </div>
+    <div style="display:flex;flex:1;min-height:0;">
+      <div class="fm-sidebar" id="fm-sidebar"></div>
+      <div style="display:flex;flex-direction:column;flex:1;min-width:0;">
+        <div class="fm-main" id="fm-main"></div>
+        <div class="fm-statusbar" id="fm-status">/home/agent</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function buildCalculator() {
   return `<div class="app-calculator" id="calc-app" style="display:flex;flex-direction:column;height:100%;padding:12px;gap:10px;background:var(--surface);">
     <input id="calc-display" value="0" readonly style="width:100%;padding:10px 12px;border:1px solid var(--border);background:var(--surface2);color:var(--green);font-size:24px;font-family:Orbitron,monospace;text-align:right;">
