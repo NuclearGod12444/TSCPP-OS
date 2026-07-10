@@ -549,6 +549,14 @@ body {
       <div class="desk-icon-img">📝</div>
       <div class="desk-icon-label">Text Editor</div>
     </div>
+    <div class="desk-icon" ondblclick="openApp('browser')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">🌐</div>
+      <div class="desk-icon-label">Browser</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('software')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">🛒</div>
+      <div class="desk-icon-label">Software</div>
+    </div>
     <div class="desk-icon" ondblclick="openApp('calculator')" onclick="selectIcon(this)">
       <div class="desk-icon-img">🧮</div>
       <div class="desk-icon-label">Calculator</div>
@@ -602,6 +610,8 @@ body {
       <div class="sm-app" onclick="openApp('terminal');closeStartMenu()"><div class="sm-app-icon">⬛</div><div class="sm-app-name">Terminal</div></div>
       <div class="sm-app" onclick="openApp('filemanager');closeStartMenu()"><div class="sm-app-icon">📁</div><div class="sm-app-name">Files</div></div>
       <div class="sm-app" onclick="openApp('editor');closeStartMenu()"><div class="sm-app-icon">📝</div><div class="sm-app-name">Text Editor</div></div>
+      <div class="sm-app" onclick="openApp('browser');closeStartMenu()"><div class="sm-app-icon">🌐</div><div class="sm-app-name">Browser</div></div>
+      <div class="sm-app" onclick="openApp('software');closeStartMenu()"><div class="sm-app-icon">🛒</div><div class="sm-app-name">Software Store</div></div>
       <div class="sm-app" onclick="openApp('calculator');closeStartMenu()"><div class="sm-app-icon">🧮</div><div class="sm-app-name">Calculator</div></div>
       <div class="sm-app" onclick="openApp('notepad');closeStartMenu()"><div class="sm-app-icon">📒</div><div class="sm-app-name">Notepad</div></div>
       <div class="sm-app" onclick="openApp('sysmon');closeStartMenu()"><div class="sm-app-icon">📊</div><div class="sm-app-name">Sys Monitor</div></div>
@@ -642,6 +652,8 @@ body {
 <div id="ctx-menu">
   <div class="ctx-item" onclick="openApp('terminal');hideCtx()">⬛ Open Terminal</div>
   <div class="ctx-item" onclick="openApp('filemanager');hideCtx()">📁 Open Files</div>
+  <div class="ctx-item" onclick="openApp('browser');hideCtx()">🌐 Open Browser</div>
+  <div class="ctx-item" onclick="openApp('software');hideCtx()">🛒 Open Software Store</div>
   <div class="ctx-item" onclick="openApp('calculator');hideCtx()">🧮 Open Calculator</div>
   <div class="ctx-item" onclick="openApp('notepad');hideCtx()">📒 Open Notepad</div>
   <div class="ctx-sep"></div>
@@ -1353,6 +1365,149 @@ function initNotepad() {
   });
 }
 
+const BROWSER_PAGES = {
+  home: {
+    title: 'TSCPP Web Home',
+    description: 'Welcome to TSCPP Web. Use the address bar to visit built-in sites: home, news, store, darkweb.',
+  },
+  news: {
+    title: 'TSCPP News',
+    description: 'Latest patch notes and system alerts:\n- New browser and software store added.\n- Install packages from the Software Store.\n- Remember to reboot after major updates.',
+  },
+  store: {
+    title: 'TSCPP Software Store',
+    description: 'Browse and install apps available for TSCPP-OS. Click INSTALL to add software to your system.',
+    type: 'store',
+  },
+  darkweb: {
+    title: 'TSCPP Dark Web',
+    description: 'This hidden portal is still under construction. Check back later for secret sites and restricted tools.',
+  },
+  notfound: {
+    title: 'Page Not Found',
+    description: 'The page you requested does not exist. Try home, news, or store instead.',
+  },
+};
+
+const SOFTWARE_CATALOG = [
+  { id: 'antivirus', name: 'Antivirus Suite', desc: 'Protects the system from malware and suspicious processes.', version: '1.0.3' },
+  { id: 'notepad++', name: 'Notepad++', desc: 'Advanced text editor with syntax highlighting.', version: '2.1.0' },
+  { id: 'firewall-x', name: 'Firewall-X', desc: 'Enhanced firewall management and intrusion detection.', version: '1.4.8' },
+  { id: 'net-analyzer', name: 'Network Analyzer', desc: 'Scan and inspect network traffic with visual reports.', version: '0.9.5' },
+  { id: 'virtual-desk', name: 'Virtual Desktop', desc: 'Add extra workspace windows and virtual screens.', version: '1.2.1' },
+  { id: 'disk-pro', name: 'Disk Pro', desc: 'Disk health monitoring and cleanup tools.', version: '3.0.0' },
+  { id: 'term-enhance', name: 'Terminal Enhancer', desc: 'Adds macros, themes, and extended shell integration.', version: '1.1.2' },
+  { id: 'media-viewer', name: 'Media Viewer', desc: 'Preview images, audio, and text files in one app.', version: '0.8.7' },
+  { id: 'passvault', name: 'PassVault', desc: 'Secure password storage protected by root access.', version: '1.0.0' },
+  { id: 'clockwork', name: 'Clockwork Scheduler', desc: 'Schedule tasks, reminders, and automated commands.', version: '1.3.3' },
+];
+
+function getSoftwareCatalog() {
+  return SOFTWARE_CATALOG;
+}
+
+function isPackageInstalled(id) {
+  return software.includes(id);
+}
+
+function installPackage(id) {
+  if (!id) return;
+  if (isPackageInstalled(id)) { notify(`${id} is already installed`, 'warn'); return; }
+  software.push(id);
+  LS.setItem('tscpp_software', JSON.stringify(software));
+  notify(`${id} installed`, 'ok');
+  renderSoftwareStore();
+}
+
+function uninstallPackage(id) {
+  if (!isPackageInstalled(id)) { notify(`${id} is not installed`, 'warn'); return; }
+  software = software.filter(item => item !== id);
+  LS.setItem('tscpp_software', JSON.stringify(software));
+  notify(`${id} uninstalled`, 'ok');
+  renderSoftwareStore();
+}
+
+function buildBrowser() {
+  return `<div class="app-browser" id="browser-app" style="display:flex;flex-direction:column;height:100%;background:var(--surface);">
+    <div style="display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--border);background:var(--surface2);">
+      <button class="ed-btn" onclick="browserNavigate('home')">Home</button>
+      <button class="ed-btn" onclick="browserNavigate('news')">News</button>
+      <button class="ed-btn" onclick="browserNavigate('store')">Store</button>
+      <button class="ed-btn" onclick="browserNavigate('darkweb')">Dark Web</button>
+      <input id="browser-url" class="ed-body" style="flex:1;min-width:0;height:30px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:0 8px;" placeholder="home, news, store, darkweb" onkeydown="if(event.key==='Enter') browserNavigate(this.value)">
+      <button class="ed-btn" onclick="browserNavigate(document.getElementById('browser-url')?.value || 'home')">Go</button>
+    </div>
+    <div id="browser-body" style="flex:1;overflow:auto;padding:14px;color:var(--text);font-size:13px;line-height:1.6;"></div>
+  </div>`;
+}
+
+function buildSoftwareStore() {
+  return `<div class="app-store" id="store-app" style="display:flex;flex-direction:column;height:100%;background:var(--surface);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-bottom:1px solid var(--border);background:var(--surface2);">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--green);">TSCPP Software Store</div>
+        <div style="font-size:11px;color:var(--text-mute);">Install apps directly from the store.</div>
+      </div>
+      <button class="ed-btn" onclick="browserNavigate('store')">Open in Browser</button>
+    </div>
+    <div id="store-body" style="flex:1;overflow:auto;padding:14px;"></div>
+  </div>`;
+}
+
+function renderSoftwareStore() {
+  const body = document.getElementById('store-body');
+  if (!body) return;
+  const items = getSoftwareCatalog();
+  body.innerHTML = items.map(pkg => {
+    const installed = isPackageInstalled(pkg.id);
+    const action = installed ? "uninstallPackage('" + pkg.id + "')" : "installPackage('" + pkg.id + "')";
+    return `<div style="border:1px solid var(--border);padding:12px;margin-bottom:10px;background:var(--surface2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--green);">${pkg.name}</div>
+          <div style="font-size:11px;color:var(--text-mute);">${pkg.id} · v${pkg.version}</div>
+        </div>
+        <button class="ed-btn" onclick="${action}">${installed?'UNINSTALL':'INSTALL'}</button>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text);">${pkg.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+function browserNavigate(target) {
+  const pageName = String(target || 'home').trim().toLowerCase().replace(/^https?:\/\//, '').split(/[\/?#]/)[0] || 'home';
+  const pageDef = BROWSER_PAGES[pageName] || BROWSER_PAGES['notfound'];
+  const body = document.getElementById('browser-body');
+  const input = document.getElementById('browser-url');
+  if (input) input.value = pageName;
+  if (!body) return;
+  if (pageDef.type === 'store') {
+    body.innerHTML = `<div style="font-size:18px;font-weight:700;margin-bottom:12px;">${pageDef.title}</div><div style="white-space:pre-wrap;color:var(--text-mute);margin-bottom:18px;">${pageDef.description}</div>`;
+    const items = getSoftwareCatalog();
+    body.innerHTML += items.map(pkg => {
+      const installed = isPackageInstalled(pkg.id);
+      const action = installed ? "uninstallPackage('" + pkg.id + "')" : "installPackage('" + pkg.id + "')";
+      return `<div style="border:1px solid var(--border);padding:12px;margin-bottom:10px;background:var(--surface2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--green);">${pkg.name}</div>
+            <div style="font-size:11px;color:var(--text-mute);">${pkg.id} · v${pkg.version}</div>
+          </div>
+          <button class="ed-btn" onclick="${action}">${installed?'UNINSTALL':'INSTALL'}</button>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--text);">${pkg.desc}</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+  body.innerHTML = `<h2 style="margin-top:0;">${pageDef.title}</h2><pre style="white-space:pre-wrap;color:var(--text-mute);">${pageDef.description}</pre>`;
+}
+
+function buildSoftwareCard() {
+  renderSoftwareStore();
+  return buildSoftwareStore();
+}
+
 function notepadSave() {
   const ta = document.getElementById('notepad-body');
   const status = document.getElementById('notepad-status');
@@ -1376,6 +1531,8 @@ const APP_DEFS = {
   terminal:    { title:'Terminal',       icon:'⬛', w:700, h:450, builder: buildTerminal    },
   filemanager: { title:'File Manager',   icon:'📁', w:660, h:440, builder: buildFileManager },
   editor:      { title:'Text Editor',    icon:'📝', w:600, h:420, builder: buildEditor      },
+  browser:     { title:'Browser',        icon:'🌐', w:760, h:520, builder: buildBrowser     },
+  software:    { title:'Software Store', icon:'🛒', w:700, h:500, builder: buildSoftwareStore },
   calculator:  { title:'Calculator',     icon:'🧮', w:360, h:420, builder: buildCalculator  },
   notepad:     { title:'Notepad',        icon:'📒', w:560, h:420, builder: buildNotepad     },
   sysmon:      { title:'System Monitor', icon:'📊', w:500, h:480, builder: buildSysMon      },
@@ -1575,6 +1732,8 @@ const TERM_CMD_HELP = {
   reg: { desc: 'Query or modify the registry', usage: 'reg [query|set|export|import] [path] [value]' },
   regedit: { desc: 'Open the registry editor', usage: 'regedit' },
   browser: { desc: 'Open the integrated browser', usage: 'browser [url]' },
+  install: { desc: 'Install software from the catalog', usage: 'install [package]' },
+  uninstall: { desc: 'Remove installed software', usage: 'uninstall [package]' },
   specs: { desc: 'Show hardware specs and effects', usage: 'specs' },
   apps: { desc: 'List installed software', usage: 'apps' },
   passwd: { desc: 'Change the lock or root password', usage: 'passwd [lock|root]' },
@@ -1780,6 +1939,21 @@ const ITERM_CMDS = {
     const target = args.join(' ') || 'tscpp://home';
     termPrint(`Opening browser target: ${target}`, 'sys');
     if (window.open) window.open(target, '_blank', 'noopener');
+  },
+  install: (args) => {
+    if (!args[0]) { termPrint('Usage: install [package]', 'err'); return; }
+    const pkg = args[0];
+    if (isPackageInstalled(pkg)) { termPrint(`${pkg} is already installed.`, 'dim'); return; }
+    if (!SOFTWARE_CATALOG.some(item => item.id === pkg)) { termPrint(`Package ${pkg} not found.`, 'err'); return; }
+    installPackage(pkg);
+    termPrint(`Installed ${pkg}.`, 'success');
+  },
+  uninstall: (args) => {
+    if (!args[0]) { termPrint('Usage: uninstall [package]', 'err'); return; }
+    const pkg = args[0];
+    if (!isPackageInstalled(pkg)) { termPrint(`${pkg} is not installed.`, 'dim'); return; }
+    uninstallPackage(pkg);
+    termPrint(`Uninstalled ${pkg}.`, 'success');
   },
   passwd: (args) => {
     const mode = (args[0] || 'lock').toLowerCase();
@@ -2834,6 +3008,8 @@ const appInitQueue = {
   terminal:    () => { initTerminal(); termUpdatePrompt(); },
   filemanager: () => fmRender(),
   editor:      () => initEditor(),
+  browser:     () => browserNavigate('home'),
+  software:    () => renderSoftwareStore(),
   calculator:  () => {},
   notepad:     () => initNotepad(),
   sysmon:      () => { sysmonRefresh(); },
