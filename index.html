@@ -674,7 +674,7 @@ body {
 </div>
 
 <script>
-const TSCPP_DESKTOP_VERSION = '5.2.0';
+const TSCPP_DESKTOP_VERSION = '5.2.1';
 const TSCPP_DESKTOP_DATE    = '2026-07-09';
 
 function refreshVersionLabels() {
@@ -688,6 +688,15 @@ function refreshVersionLabels() {
 refreshVersionLabels();
 
 const DESKTOP_CHANGELOG = {
+  '5.2.1': {
+    date: '2026-7-9',
+    sections: [
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Fixed the hardware system, should prompt you to select hardware.',
+        'Added system defects that occur when hardware components have damage, such as artifacts or severe lag.',
+      ]},
+    ],
+  },
   '5.2.0': {
     date: '2026-7-9',
     sections: [
