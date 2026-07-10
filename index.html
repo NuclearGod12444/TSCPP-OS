@@ -71,6 +71,9 @@ body {
 #login-input { background: transparent; border: none; outline: none; color: var(--green); font-family: inherit; font-size: 13px; flex: 1; caret-color: var(--green); }
 .ls-hint { font-size: 10px; color: var(--text-mute); }
 .ls-hint span { color: #1a3a1a; }
+.ls-reset-wrap { margin-top: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ls-reset-btn { background: transparent; border: 1px solid var(--border); color: var(--green-dim); padding: 6px 10px; font-family: inherit; font-size: 10px; letter-spacing: 1px; cursor: pointer; }
+.ls-reset-btn:hover { border-color: var(--green-dark); color: var(--green); }
 .ls-bars { display: flex; gap: 4px; align-items: flex-end; }
 .ls-bar { width: 4px; background: var(--green-dark); animation: lb 1.2s ease-in-out infinite; }
 .ls-bar:nth-child(1){height:8px;animation-delay:0s} .ls-bar:nth-child(2){height:14px;animation-delay:.2s}
@@ -522,6 +525,10 @@ body {
   <div class="ls-input-wrap" id="ls-wrap">
     <label>KEY</label>
     <input type="password" id="login-input" autocomplete="off" placeholder="enter access key">
+  </div>
+  <div class="ls-reset-wrap">
+    <button class="ls-reset-btn" type="button" onclick="resetAccessKeys()">RESET KEYS</button>
+    <div class="ls-hint">Default keys: login = TSCPP-1993 · root = Secret@Agent983</div>
   </div>
   <div class="ls-hint" id="ls-hint">TSCPP-OS v? · <span id="ls-hostname">LOCAL</span></div>
 </div>
@@ -1000,6 +1007,21 @@ function regGet(hive, key, name) {
 
 function getUserName() {
   return regGet('HKEY_AGENT','Profile','Username') || 'AGENT';
+}
+
+function resetAccessKeys() {
+  const confirmation = prompt('Reset access keys to the defaults?\nType RESET to confirm.', '');
+  if (confirmation?.trim().toUpperCase() !== 'RESET') {
+    notify('Key reset cancelled', 'warn');
+    return;
+  }
+  masterKey = 'TSCPP-1993';
+  rootKey = 'Secret@Agent983';
+  LS.setItem('tscpp_master_key', masterKey);
+  LS.setItem('tscpp_root_key', rootKey);
+  const input = document.getElementById('login-input');
+  if (input) input.value = '';
+  notify('Keys reset to defaults', 'ok', 4000);
 }
 
 /* ── WALLPAPERS ──────────────────────────────────────────────────────────── */
