@@ -522,7 +522,7 @@ body {
     <label>KEY</label>
     <input type="password" id="login-input" autocomplete="off" placeholder="enter access key">
   </div>
-  <div class="ls-hint">TSCPP-OS v5.0 · <span id="ls-hostname">LOCAL</span></div>
+  <div class="ls-hint">TSCPP-OS v5.1.1 · <span id="ls-hostname">LOCAL</span></div>
 </div>
 
 <!-- Desktop -->
@@ -594,7 +594,7 @@ body {
   <div class="sm-power">
     <div class="sm-power-btn" onclick="location.reload()">↺ REBOOT</div>
     <div class="sm-power-btn" onclick="doLogout()">⏻ LOCK</div>
-    <div class="sm-power-btn" onclick="if(confirm('Open TSCPP Terminal app?'))window.open('TSCPP_Terminal.html')">⬛ TERMINAL</div>
+    <div class="sm-power-btn" onclick="if(confirm('Open TSCPP Terminal app?'))window.open('TSCPP-Advanced.html')">⬛ TERMINAL</div>
   </div>
 </div>
 
@@ -636,8 +636,16 @@ const TSCPP_DESKTOP_VERSION = '5.1.0';
 const TSCPP_DESKTOP_DATE    = '2025-01-01';
 
 const DESKTOP_CHANGELOG = {
+  '5.1.1': {
+    date: '2026-7-9',
+    sections: [
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Fixed a few typos and incorrect info that was discovered.',
+      ]},
+    ],
+  },
   '5.1.0': {
-    date: '2025-01-01',
+    date: '2026-7-9',
     sections: [
       { type:'feat', label:'NEW FEATURES', items:[
         'Desktop OS — full windowed environment with taskbar and start menu',
@@ -650,7 +658,7 @@ const DESKTOP_CHANGELOG = {
         'Update System — automatic version detection with changelog',
       ]},
       { type:'impr', label:'IMPROVEMENTS', items:[
-        'All apps share live localStorage with TSCPP_Terminal.html',
+        'All apps share live localStorage with TSCPP-Advanced.html',
         'Wallpaper cycles through 6 themes via right-click menu',
         'Start menu with search and power controls',
         'Tray shows live network, trace risk, and health status',
@@ -658,7 +666,7 @@ const DESKTOP_CHANGELOG = {
     ],
   },
   '5.0.0': {
-    date: '2024-12-01',
+    date: '2026-5-7',
     sections: [
       { type:'feat', label:'NEW FEATURES', items:[
         'Hardware builder — pick CPU, GPU, RAM with bottleneck detection',
@@ -681,7 +689,7 @@ const DESKTOP_CHANGELOG = {
     ],
   },
   '4.0.0': {
-    date: '2024-11-01',
+    date: '2026-5-7',
     sections: [
       { type:'feat', label:'NEW FEATURES', items:[
         'Nano text editor overlay with Ctrl+S save',
@@ -872,7 +880,7 @@ async function runBoot() {
   const lines = document.getElementById('boot-lines');
   const fill  = document.getElementById('boot-prog-fill');
   const items = [
-    ['>> TSCPP BIOS v5.0 — POST STARTING...',''],
+    ['>> TSCPP BIOS v5.1.1 — POST STARTING...',''],
     ['>> CPU........ OK','boot-ok'],
     ['>> RAM........ OK','boot-ok'],
     ['>> DISK....... OK','boot-ok'],
@@ -1161,7 +1169,7 @@ const ITERM_CMDS = {
      ['clear','Clear screen'],['login','Become ROOT'],['logout','End ROOT session'],
      ['reg query [path]','Query registry'],['reg set [path] [val]','Set registry value'],
     ].forEach(([c,d]) => termPrint('  ' + c.padEnd(26) + d, ''));
-    termPrint('  Full terminal: TSCPP_Terminal.html', 'dim');
+    termPrint('  Full terminal: TSCPP-Advanced.html', 'dim');
   },
   clear: () => { const o=document.getElementById('term-out'); if(o) o.innerHTML=''; },
   pwd:   () => termPrint(termCwd, 'sys'),
@@ -1171,7 +1179,7 @@ const ITERM_CMDS = {
     const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu)?.name : 'Unknown';
     const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu)?.name : 'Unknown';
     const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram)?.name : 'Unknown';
-    ['── TSCPP-OS v5.0 ──','CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
+    ['── TSCPP-OS v5.1.1 ──','CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
      'NODE : LOCAL','Files: '+Object.keys(files).length+' stored',
     ].forEach(l => termPrint('  '+l,'sys'));
   },
@@ -1779,8 +1787,8 @@ function buildSettings() {
           </select>
         </div>
         <div class="set-row" style="margin-top:12px;">
-          <div class="set-row-info"><div class="set-row-label">Open Full Terminal</div><div class="set-row-desc">Launch TSCPP_Terminal.html</div></div>
-          <button class="set-btn" onclick="window.open('TSCPP_Terminal.html')">LAUNCH</button>
+          <div class="set-row-info"><div class="set-row-label">Open Full Terminal</div><div class="set-row-desc">Launch TSCPP-Advanced.html</div></div>
+          <button class="set-btn" onclick="window.open('TSCPP-Advanced.html')">LAUNCH</button>
         </div>
       </div>
 
@@ -1811,7 +1819,7 @@ function buildSettings() {
           </div>
         </div>
         <div style="margin-top:10px;font-size:10px;color:#1a3a1a;line-height:1.7;">
-          To update: drop a new TSCPP_Desktop.html or TSCPP_Terminal.html in place. The desktop detects the version change on next load and shows the full changelog automatically.
+          To update: drop a new TSCPP_Desktop.html or TSCPP-Advanced.html in place. The desktop detects the version change on next load and shows the full changelog automatically.
         </div>
       </div>
 
@@ -2000,7 +2008,7 @@ function refreshDesktop() {
     document.getElementById('boot-screen').classList.add('hidden');
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('login-input').focus();
-    notify('First time? Set up keys in TSCPP_Terminal.html first.', 'warn', 5000);
+    notify('First time? Set up keys in TSCPP-Advanced.html first.', 'warn', 5000);
     return;
   }
   await runBoot();
