@@ -542,6 +542,14 @@ body {
       <div class="desk-icon-img">📝</div>
       <div class="desk-icon-label">Text Editor</div>
     </div>
+    <div class="desk-icon" ondblclick="openApp('calculator')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">🧮</div>
+      <div class="desk-icon-label">Calculator</div>
+    </div>
+    <div class="desk-icon" ondblclick="openApp('notepad')" onclick="selectIcon(this)">
+      <div class="desk-icon-img">📒</div>
+      <div class="desk-icon-label">Notepad</div>
+    </div>
     <div class="desk-icon" ondblclick="openApp('sysmon')" onclick="selectIcon(this)">
       <div class="desk-icon-img">📊</div>
       <div class="desk-icon-label">Sys Monitor</div>
@@ -587,6 +595,8 @@ body {
       <div class="sm-app" onclick="openApp('terminal');closeStartMenu()"><div class="sm-app-icon">⬛</div><div class="sm-app-name">Terminal</div></div>
       <div class="sm-app" onclick="openApp('filemanager');closeStartMenu()"><div class="sm-app-icon">📁</div><div class="sm-app-name">Files</div></div>
       <div class="sm-app" onclick="openApp('editor');closeStartMenu()"><div class="sm-app-icon">📝</div><div class="sm-app-name">Text Editor</div></div>
+      <div class="sm-app" onclick="openApp('calculator');closeStartMenu()"><div class="sm-app-icon">🧮</div><div class="sm-app-name">Calculator</div></div>
+      <div class="sm-app" onclick="openApp('notepad');closeStartMenu()"><div class="sm-app-icon">📒</div><div class="sm-app-name">Notepad</div></div>
       <div class="sm-app" onclick="openApp('sysmon');closeStartMenu()"><div class="sm-app-icon">📊</div><div class="sm-app-name">Sys Monitor</div></div>
       <div class="sm-app" onclick="openApp('registry');closeStartMenu()"><div class="sm-app-icon">🗂</div><div class="sm-app-name">Registry</div></div>
       <div class="sm-app" onclick="openApp('settings');closeStartMenu()"><div class="sm-app-icon">⚙</div><div class="sm-app-name">Settings</div></div>
@@ -625,6 +635,8 @@ body {
 <div id="ctx-menu">
   <div class="ctx-item" onclick="openApp('terminal');hideCtx()">⬛ Open Terminal</div>
   <div class="ctx-item" onclick="openApp('filemanager');hideCtx()">📁 Open Files</div>
+  <div class="ctx-item" onclick="openApp('calculator');hideCtx()">🧮 Open Calculator</div>
+  <div class="ctx-item" onclick="openApp('notepad');hideCtx()">📒 Open Notepad</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" onclick="openApp('settings');hideCtx()">⚙ Settings</div>
   <div class="ctx-item" onclick="cycleWallpaper();hideCtx()">🖼 Change Wallpaper</div>
@@ -633,7 +645,7 @@ body {
 </div>
 
 <script>
-const TSCPP_DESKTOP_VERSION = '5.1.2';
+const TSCPP_DESKTOP_VERSION = '5.2.0';
 const TSCPP_DESKTOP_DATE    = '2026-07-09';
 
 function refreshVersionLabels() {
@@ -647,6 +659,24 @@ function refreshVersionLabels() {
 refreshVersionLabels();
 
 const DESKTOP_CHANGELOG = {
+  '5.2.0': {
+    date: '2026-7-9',
+    sections: [
+      { type:'feat', label:'NEW FEATURES', items:[
+        'Added a built-in Calculator app with basic arithmetic and expression evaluation.',
+        'Added a persistent Notepad app with local autosave and Ctrl+S support.',
+        'Made both apps available from the desktop, Start menu, and right-click context menu.',
+        'Completely merged the Advanced Terminal system into TSCPP Desktop, so that it is all one system now. The Advanced Terminal is now the default terminal app, and the old terminal is still usable, but deprecated.',
+        'Added the TSCPP browser system.',
+        'Added the hardware spec system, which allows you to build your own CPU, GPU, and RAM, and see how they perform together.',
+        'You can now brick the system by doing stupid things such as deleting system files, or installing incompatible hardware. This is a feature, not a bug.',
+        'A lot of new terminal commands have been added, including the ability to edit the registry, view system logs, and more. Find these in the Terminal App on the desktop.',
+      ]},
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Fixed a good amount of system functionality issues and bugs that were discovered.',
+      ]},
+    ],
+  },
   '5.1.2': {
     date: '2026-7-9',
     sections: [
@@ -888,7 +918,7 @@ let sysHealth   = getLS('tscpp_health') || {};
 let registry    = getLS('tscpp_registry') || {};
 let hardware    = getLS('tscpp_hardware');
 let software    = getLS('tscpp_software') || [];
-let dirs        = getLS('tscpp_dirs') || ['/','home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
+let dirs        = getLS('tscpp_dirs') || ['/','/home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
 let fileLocs    = getLS('tscpp_locs') || {};
 let masterKey   = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
 let rootKey     = LS.getItem('tscpp_root_key')   || 'Secret@Agent983';
@@ -900,10 +930,42 @@ function reloadShared() {
   registry  = getLS('tscpp_registry') || {};
   hardware  = getLS('tscpp_hardware');
   software  = getLS('tscpp_software') || [];
-  dirs      = getLS('tscpp_dirs') || ['/','home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
+  dirs      = getLS('tscpp_dirs') || ['/','/home','/home/agent','/sys','/etc','/var','/var/log','/tmp','/root'];
   fileLocs  = getLS('tscpp_locs') || {};
   masterKey = LS.getItem('tscpp_master_key') || 'TSCPP-1993';
   rootKey   = LS.getItem('tscpp_root_key')   || 'Secret@Agent983';
+  validateSystemState();
+}
+
+function validateSystemState() {
+  const health = {};
+  const required = [
+    ['HKEY_AGENT','Terminal','Theme'],
+    ['HKEY_AGENT','Terminal','FontSize'],
+    ['HKEY_AGENT','Profile','Username'],
+    ['HKEY_AGENT','Profile','Callsign'],
+    ['HKEY_SYSTEM','Boot','RebootTimeout'],
+    ['HKEY_SYSTEM','Security','AutoLock'],
+    ['HKEY_SYSTEM','Security','AuditLogging'],
+    ['HKEY_NETWORK','Firewall','StealthMode'],
+    ['HKEY_NETWORK','VPN','Protocol'],
+  ];
+  required.forEach(([h,k,n]) => {
+    const found = registry?.[h]?.[k]?.[n] !== undefined;
+    const key = `${h}\\${k}`;
+    health[key] = found;
+  });
+
+  const requiredFiles = ['boot.cfg','auth.db','network.conf','kernel.cfg','firewall.rules','hosts'];
+  requiredFiles.forEach(name => {
+    health[`file:${name}`] = (files[name] !== undefined || SYSFILES[name] !== undefined);
+  });
+
+  health['filesystem'] = dirs.includes('/home/agent') && dirs.includes('/');
+  health['auth'] = !!LS.getItem('tscpp_master_key') && !!LS.getItem('tscpp_root_key');
+
+  sysHealth = health;
+  LS.setItem('tscpp_health', JSON.stringify(sysHealth));
 }
 
 const HW_CATALOG = {
@@ -1157,10 +1219,123 @@ document.getElementById('desktop').addEventListener('mousedown', e => {
 });
 
 /* ── APPS ────────────────────────────────────────────────────────────────── */
+function buildCalculator() {
+  return `<div class="app-calculator" id="calc-app" style="display:flex;flex-direction:column;height:100%;padding:12px;gap:10px;background:var(--surface);">
+    <input id="calc-display" value="0" readonly style="width:100%;padding:10px 12px;border:1px solid var(--border);background:var(--surface2);color:var(--green);font-size:24px;font-family:Orbitron,monospace;text-align:right;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+      <button class="ed-btn" onclick="calcClear()">C</button>
+      <button class="ed-btn" onclick="calcBackspace()">⌫</button>
+      <button class="ed-btn" onclick="calcAppend('%')">%</button>
+      <button class="ed-btn" onclick="calcAppend('/')">/</button>
+      <button class="ed-btn" onclick="calcAppend('7')">7</button>
+      <button class="ed-btn" onclick="calcAppend('8')">8</button>
+      <button class="ed-btn" onclick="calcAppend('9')">9</button>
+      <button class="ed-btn" onclick="calcAppend('*')">×</button>
+      <button class="ed-btn" onclick="calcAppend('4')">4</button>
+      <button class="ed-btn" onclick="calcAppend('5')">5</button>
+      <button class="ed-btn" onclick="calcAppend('6')">6</button>
+      <button class="ed-btn" onclick="calcAppend('-')">−</button>
+      <button class="ed-btn" onclick="calcAppend('1')">1</button>
+      <button class="ed-btn" onclick="calcAppend('2')">2</button>
+      <button class="ed-btn" onclick="calcAppend('3')">3</button>
+      <button class="ed-btn" onclick="calcAppend('+')">+</button>
+      <button class="ed-btn" onclick="calcAppend('0')">0</button>
+      <button class="ed-btn" onclick="calcAppend('.')">.</button>
+      <button class="ed-btn" onclick="calcEvaluate()">=</button>
+      <button class="ed-btn" onclick="calcAppend('(')">(</button>
+      <button class="ed-btn" onclick="calcAppend(')')">)</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-mute);line-height:1.5;">Simple calculator for quick arithmetic and expressions.</div>
+  </div>`;
+}
+
+function calcAppend(value) {
+  const display = document.getElementById('calc-display');
+  if (!display) return;
+  const current = display.value;
+  if (current === '0' && value !== '.') display.value = String(value);
+  else if (value === '.' && current.includes('.')) return;
+  else display.value += value;
+}
+
+function calcBackspace() {
+  const display = document.getElementById('calc-display');
+  if (!display) return;
+  display.value = display.value.slice(0, -1) || '0';
+}
+
+function calcClear() {
+  const display = document.getElementById('calc-display');
+  if (display) display.value = '0';
+}
+
+function calcEvaluate() {
+  const display = document.getElementById('calc-display');
+  if (!display) return;
+  const expr = display.value.replace(/[^0-9+\-*/().% ]/g, '');
+  if (!expr) { display.value = '0'; return; }
+  try {
+    const sanitized = expr.replace(/%/g, '/100');
+    const result = Function(`"use strict"; return (${sanitized})`)();
+    display.value = Number.isFinite(result) ? String(Number(result.toFixed(10))) : 'ERR';
+  } catch (e) {
+    display.value = 'ERR';
+  }
+}
+
+function buildNotepad() {
+  return `<div class="app-notepad" id="notepad-app" style="display:flex;flex-direction:column;height:100%;padding:10px;gap:8px;background:var(--surface);">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="ed-btn" onclick="notepadSave()">SAVE</button>
+      <button class="ed-btn" onclick="notepadClear()">NEW</button>
+      <span class="ed-filename" id="notepad-title">Untitled Note</span>
+      <span class="ed-modified" id="notepad-status">Autosaves locally</span>
+    </div>
+    <textarea id="notepad-body" spellcheck="false" style="flex:1;resize:none;padding:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:monospace;font-size:12px;line-height:1.5;" placeholder="Write a quick note..."></textarea>
+  </div>`;
+}
+
+function initNotepad() {
+  const ta = document.getElementById('notepad-body');
+  const status = document.getElementById('notepad-status');
+  if (!ta || ta.dataset.init) return;
+  ta.dataset.init = '1';
+  ta.value = LS.getItem('tscpp_notepad_text') || '';
+  if (status) status.textContent = ta.value.length ? `${ta.value.length} chars` : 'Empty note';
+  ta.addEventListener('input', () => {
+    LS.setItem('tscpp_notepad_text', ta.value);
+    if (status) status.textContent = ta.value.length ? `${ta.value.length} chars` : 'Empty note';
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); notepadSave(); }
+  });
+}
+
+function notepadSave() {
+  const ta = document.getElementById('notepad-body');
+  const status = document.getElementById('notepad-status');
+  if (!ta) return;
+  LS.setItem('tscpp_notepad_text', ta.value);
+  if (status) status.textContent = ta.value.length ? `${ta.value.length} chars` : 'Empty note';
+  notify('Note saved', 'ok');
+}
+
+function notepadClear() {
+  const ta = document.getElementById('notepad-body');
+  if (!ta) return;
+  ta.value = '';
+  LS.setItem('tscpp_notepad_text', '');
+  const status = document.getElementById('notepad-status');
+  if (status) status.textContent = 'Empty note';
+  notify('Notepad cleared', 'ok');
+}
+
 const APP_DEFS = {
   terminal:    { title:'Terminal',       icon:'⬛', w:700, h:450, builder: buildTerminal    },
   filemanager: { title:'File Manager',   icon:'📁', w:660, h:440, builder: buildFileManager },
   editor:      { title:'Text Editor',    icon:'📝', w:600, h:420, builder: buildEditor      },
+  calculator:  { title:'Calculator',     icon:'🧮', w:360, h:420, builder: buildCalculator  },
+  notepad:     { title:'Notepad',        icon:'📒', w:560, h:420, builder: buildNotepad     },
   sysmon:      { title:'System Monitor', icon:'📊', w:500, h:480, builder: buildSysMon      },
   registry:    { title:'Registry',       icon:'🗂',  w:680, h:480, builder: buildRegistry  },
   settings:    { title:'Settings',       icon:'⚙',  w:580, h:460, builder: buildSettings   },
@@ -1177,8 +1352,37 @@ function openApp(id) {
 /* ── TERMINAL APP ────────────────────────────────────────────────────────── */
 let termHistory = getLS('tscpp_history') || [];
 let termHistIdx = termHistory.length;
-let termCwd = getLS('tscpp_state')?.cwd || '/home/agent';
+let termState = getLS('tscpp_state') || {
+  cwd: '/home/agent',
+  startTime: Date.now(),
+  traceRisk: 12,
+  hasWifi: true,
+  uplink: false,
+  wifiOverride: false,
+  packetSniff: false,
+  firewall: true,
+  vpn: false,
+  proxy: null,
+  connectedNetwork: null,
+  aliases: {},
+  macro: { recording: false, sequence: [], name: null }
+};
+let termCwd = termState.cwd || '/home/agent';
 let termIsAdmin = false;
+
+function saveTermState() {
+  termState.cwd = termCwd;
+  LS.setItem('tscpp_state', JSON.stringify(termState));
+}
+
+function setTermState(key, value) {
+  termState[key] = value;
+  saveTermState();
+}
+
+function getTermState(key) {
+  return termState[key];
+}
 
 function buildTerminal() {
   return `<div class="app-terminal" id="term-app">
@@ -1245,42 +1449,355 @@ const SYSFILES = {
   'passwd':        'root:x:0:0:root\nagent:x:1001:1001',
 };
 
+function termNormPath(p) {
+  if (!p) return termCwd;
+  const base = p.startsWith('/') ? p : termCwd + '/' + p;
+  const parts = base.split('/').filter(Boolean);
+  const stack = [];
+  for (const part of parts) {
+    if (part === '..') stack.pop();
+    else if (part !== '.') stack.push(part);
+  }
+  return '/' + stack.join('/') || '/';
+}
+
+function termResolveFile(arg) {
+  if (!arg) return { name: null, dir: termCwd };
+  if (arg.includes('/')) {
+    const dir = arg.substring(0, arg.lastIndexOf('/')) || '/';
+    const name = arg.substring(arg.lastIndexOf('/') + 1);
+    return { name, dir: termNormPath(dir) };
+  }
+  if (files[arg] !== undefined) return { name: arg, dir: fileLocs[arg] || '/home/agent' };
+  return { name: arg, dir: termCwd };
+}
+
+const TERM_CMD_HELP = {
+  help: { desc: 'List commands or show help for one command', usage: 'help [command]' },
+  clear: { desc: 'Clear the terminal output', usage: 'clear' },
+  pwd: { desc: 'Print the current working directory', usage: 'pwd' },
+  cd: { desc: 'Change the working directory', usage: 'cd [path]' },
+  ls: { desc: 'List files and folders', usage: 'ls [path]' },
+  mkdir: { desc: 'Create a directory', usage: 'mkdir [path]' },
+  rmdir: { desc: 'Remove an empty directory', usage: 'rmdir [path]' },
+  cat: { desc: 'Show file contents', usage: 'cat [file]' },
+  write: { desc: 'Write content to a file', usage: 'write [file] [text]' },
+  erase: { desc: 'Delete a file', usage: 'erase [file]' },
+  rename: { desc: 'Rename a file', usage: 'rename [old] [new]' },
+  find: { desc: 'Search for files by name', usage: 'find [term]' },
+  grep: { desc: 'Search file contents', usage: 'grep [term] [file]' },
+  diff: { desc: 'Compare two files', usage: 'diff [file1] [file2]' },
+  nano: { desc: 'Open the nano editor', usage: 'nano [file]' },
+  chmod: { desc: 'Set file permissions', usage: 'chmod [file] [mode]' },
+  zip: { desc: 'Compress a file', usage: 'zip [file]' },
+  unzip: { desc: 'Uncompress a file', usage: 'unzip [file]' },
+  download: { desc: 'Download a file locally', usage: 'download [file]' },
+  scan: { desc: 'Scan for nearby networks', usage: 'scan' },
+  hack: { desc: 'Attempt a network hack', usage: 'hack [id]' },
+  'wifi-override': { desc: 'Enable wireless override mode', usage: 'wifi-override' },
+  tunnel: { desc: 'Open a tunnel to a host', usage: 'tunnel [ip]' },
+  ping: { desc: 'Ping a host', usage: 'ping [host]' },
+  trace: { desc: 'Trace a route', usage: 'trace [host]' },
+  netstat: { desc: 'Show open connections', usage: 'netstat' },
+  portmap: { desc: 'Port-scan a host', usage: 'portmap [host]' },
+  nmap: { desc: 'Deep scan a host', usage: 'nmap [host]' },
+  sniff: { desc: 'Capture packets', usage: 'sniff' },
+  arp: { desc: 'Show the ARP table', usage: 'arp' },
+  spoof: { desc: 'Spoof an identity', usage: 'spoof [ip]' },
+  bruteforce: { desc: 'Run a brute-force attack', usage: 'bruteforce [target]' },
+  inject: { desc: 'Inject a payload', usage: 'inject [target]' },
+  keylog: { desc: 'Toggle keystroke capture', usage: 'keylog [start|stop]' },
+  crack: { desc: 'Attempt password cracking', usage: 'crack [hash]' },
+  decrypt: { desc: 'Decode a base64 string', usage: 'decrypt [text]' },
+  exfil: { desc: 'Exfiltrate a file', usage: 'exfil [file]' },
+  firewall: { desc: 'Toggle the firewall', usage: 'firewall [on|off]' },
+  vpn: { desc: 'Toggle the VPN', usage: 'vpn [on|off]' },
+  proxy: { desc: 'Set a proxy', usage: 'proxy [ip]' },
+  locate: { desc: 'Locate a target', usage: 'locate [target]' },
+  ps: { desc: 'List running processes', usage: 'ps' },
+  kill: { desc: 'Kill a process', usage: 'kill [pid]' },
+  sysinfo: { desc: 'Show hardware information', usage: 'sysinfo' },
+  restore: { desc: 'Restore a system file', usage: 'restore [file]' },
+  'os-reinstall': { desc: 'Reinstall the operating system', usage: 'os-reinstall' },
+  connect: { desc: 'Join the TSCPP uplink', usage: 'connect' },
+  sidebar: { desc: 'Toggle the sidebar', usage: 'sidebar' },
+  minimap: { desc: 'Toggle the minimap', usage: 'minimap' },
+  syshealth: { desc: 'Run a system health check', usage: 'syshealth' },
+  theme: { desc: 'Change the terminal theme', usage: 'theme [name]' },
+  macro: { desc: 'Record or replay command macros', usage: 'macro [record|play|stop|list] [name]' },
+  reg: { desc: 'Query or modify the registry', usage: 'reg [query|set|export|import] [path] [value]' },
+  regedit: { desc: 'Open the registry editor', usage: 'regedit' },
+  browser: { desc: 'Open the integrated browser', usage: 'browser [url]' },
+  specs: { desc: 'Show hardware specs and effects', usage: 'specs' },
+  apps: { desc: 'List installed software', usage: 'apps' },
+  passwd: { desc: 'Change the lock or root password', usage: 'passwd [lock|root]' },
+  man: { desc: 'Show manual details for a command', usage: 'man [command]' },
+  cron: { desc: 'Manage cron tasks', usage: 'cron [list|add|clear]' },
+};
+
+function buildDefaultRegistry() {
+  return {
+    HKEY_AGENT: {
+      Profile: {
+        Username: { type: 'REG_SZ', value: 'AGENT' },
+        Callsign: { type: 'REG_SZ', value: 'AGENT' },
+      },
+      Terminal: {
+        Theme: { type: 'REG_SZ', value: 'green' },
+        FontSize: { type: 'REG_DWORD', value: 12 },
+      },
+    },
+    HKEY_SYSTEM: {
+      Boot: {
+        RebootTimeout: { type: 'REG_DWORD', value: 5 },
+      },
+      Security: {
+        AutoLock: { type: 'REG_BOOL', value: true },
+        AuditLogging: { type: 'REG_BOOL', value: true },
+      },
+    },
+    HKEY_NETWORK: {
+      Firewall: {
+        StealthMode: { type: 'REG_BOOL', value: false },
+      },
+      VPN: {
+        Protocol: { type: 'REG_SZ', value: 'OpenVPN' },
+      },
+    },
+  };
+}
+
+function performSystemReinstall() {
+  if (!confirm('Reinstall the OS and restore factory defaults? This will reset files, registry, and session state.')) return;
+  termPrint('Reinstalling OS. Please wait...', 'warn');
+  const defaultFiles = {
+    ...SYSFILES,
+    'welcome.txt': 'TSCPP Terminal v11.0 — Connection required for cloud sync.',
+    'note.txt': 'Protocol: SCAN -> HACK -> OVERRIDE -> TUNNEL -> EXPLOIT.',
+    'readme.md': 'Welcome agent. Type HELP for command reference.',
+  };
+  const defaultDirs = ['/', '/home', '/home/agent', '/sys', '/etc', '/var', '/var/log', '/tmp', '/root'];
+  const defaultLocs = {
+    'kernel.cfg': '/sys', 'firewall.rules': '/sys', 'auth.db': '/sys', 'network.conf': '/sys', 'enc_keys.dat': '/sys',
+    'boot.cfg': '/sys', 'sys.log': '/var/log', 'hosts': '/etc', 'cron.dat': '/etc', 'passwd': '/etc',
+    'welcome.txt': '/home/agent', 'note.txt': '/home/agent', 'readme.md': '/home/agent',
+  };
+  const defaultHealth = {
+    'HKEY_AGENT\\Terminal': true,
+    'HKEY_AGENT\\Profile': true,
+    'HKEY_SYSTEM\\Boot': true,
+    'HKEY_SYSTEM\\Security': true,
+    'HKEY_NETWORK\\Firewall': true,
+    'HKEY_NETWORK\\VPN': true,
+    'file:boot.cfg': true,
+    'file:auth.db': true,
+    'file:network.conf': true,
+    'file:kernel.cfg': true,
+    'file:firewall.rules': true,
+    'file:hosts': true,
+    filesystem: true,
+    auth: true,
+  };
+
+  files = defaultFiles;
+  dirs = defaultDirs;
+  fileLocs = defaultLocs;
+  registry = buildDefaultRegistry();
+  sysHealth = defaultHealth;
+  software = [];
+  hardware = null;
+  termHistory = [];
+  termHistIdx = 0;
+  termCwd = '/home/agent';
+  termState = {
+    cwd: '/home/agent',
+    startTime: Date.now(),
+    traceRisk: 12,
+    hasWifi: true,
+    uplink: false,
+    wifiOverride: false,
+    packetSniff: false,
+    firewall: true,
+    vpn: false,
+    proxy: null,
+    connectedNetwork: null,
+    aliases: {},
+    macro: { recording: false, sequence: [], name: null }
+  };
+  termIsAdmin = false;
+  termUpdatePrompt();
+
+  LS.setItem('tscpp_files', JSON.stringify(files));
+  LS.setItem('tscpp_dirs', JSON.stringify(dirs));
+  LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  LS.setItem('tscpp_health', JSON.stringify(sysHealth));
+  LS.setItem('tscpp_history', '[]');
+  LS.setItem('tscpp_state', JSON.stringify(termState));
+  LS.setItem('tscpp_hardware', 'null');
+  LS.setItem('tscpp_software', '[]');
+  LS.setItem('tscpp_macros', '{}');
+  LS.setItem('tscpp_tutorials', '{}');
+  LS.setItem('tscpp_master_key', 'TSCPP-1993');
+  LS.setItem('tscpp_root_key', 'Secret@Agent983');
+  notify('OS reinstall complete. Rebooting...', 'ok', 2200);
+  setTimeout(() => {
+    window.location.replace(window.location.pathname + '?v=' + Date.now());
+  }, 1200);
+}
+
 const ITERM_CMDS = {
-  help: () => {
+  help: (args) => {
+    const cmd = args[0];
+    if (cmd) {
+      const info = TERM_CMD_HELP[cmd];
+      if (!info) { termPrint(`No manual entry for ${cmd}`, 'err'); return; }
+      termPrint(`MAN ${cmd}`, 'sys');
+      termPrint(`  ${info.desc}`, '');
+      termPrint(`  Usage: ${info.usage}`, 'dim');
+      return;
+    }
     termPrint('AVAILABLE COMMANDS:', 'sys');
-    [['ls [path]','List files'],['cat [file]','Read file'],['cd [path]','Change directory'],
-     ['pwd','Print directory'],['write [f] [txt]','Write file'],['erase [f]','Delete file'],
-     ['whoami','Identity'],['sysinfo','System info'],['syshealth','Health check'],
-     ['clear','Clear screen'],['login','Become ROOT'],['logout','End ROOT session'],
-     ['reg query [path]','Query registry'],['reg set [path] [val]','Set registry value'],
-    ].forEach(([c,d]) => termPrint('  ' + c.padEnd(26) + d, ''));
-    termPrint('  Full terminal: TSCPP-Advanced.html', 'dim');
+    Object.keys(TERM_CMD_HELP).sort().forEach(key => termPrint(`  ${key.padEnd(16)} ${TERM_CMD_HELP[key].usage}`, ''));
+    termPrint('  Full terminal: advterminal.html', 'dim');
   },
   clear: () => { const o=document.getElementById('term-out'); if(o) o.innerHTML=''; },
-  pwd:   () => termPrint(termCwd, 'sys'),
-  whoami:() => termPrint(`UID: ${termIsAdmin?'0 (ROOT)':'1001 (AGENT)'} | CWD: ${termCwd}`, 'sys'),
-  sysinfo:() => {
-    reloadShared();
-    const cpu = hardware ? HW_CATALOG.cpu.find(c=>c.id===hardware.cpu)?.name : 'Unknown';
-    const gpu = hardware ? HW_CATALOG.gpu.find(g=>g.id===hardware.gpu)?.name : 'Unknown';
-    const ram = hardware ? HW_CATALOG.ram.find(r=>r.id===hardware.ram)?.name : 'Unknown';
-    [`── TSCPP-OS v${TSCPP_DESKTOP_VERSION} ──`,'CPU  : '+cpu,'GPU  : '+gpu,'RAM  : '+ram,
-     'NODE : LOCAL','Files: '+Object.keys(files).length+' stored',
-    ].forEach(l => termPrint('  '+l,'sys'));
+  panic: () => { termPrint('EMERGENCY: Severing connections, purging logs...', 'err'); setTermState('uplink', false); setTermState('connectedNetwork', null); setTermState('wifiOverride', false); setTermState('packetSniff', false); termPrint('Terminal locked. Use reboot to restore.','warn'); },
+  reboot: () => { termPrint('Rebooting...', 'sys'); setTimeout(() => { window.location.reload(); }, 800); },
+  echo: (args) => termPrint(args.join(' '), ''),
+  date: () => termPrint(new Date().toString(), 'sys'),
+  uptime: () => { const seconds = Math.floor((Date.now() - termState.startTime) / 1000); const h = Math.floor(seconds/3600); const m = Math.floor((seconds%3600)/60); const s = seconds%60; termPrint(`Uptime: ${h}h ${m}m ${s}s`, 'sys'); },
+  history: () => termHistory.forEach((c,i) => termPrint(`  ${i+1}. ${c}`, 'sys')),
+  env: () => Object.entries({PWD:termCwd,USER:termIsAdmin?'root':'agent',SHELL:'tscppsh',TERM:'xterm-256color',VERSION:TSCPP_DESKTOP_VERSION}).forEach(([k,v]) => termPrint(`  ${k}=${v}`,'sys')),
+  alias: (args) => {
+    if (args.length < 2) { termPrint('Usage: alias [name] [command]', 'err'); return; }
+    const name = args[0]; const command = args.slice(1).join(' ');
+    termState.aliases[name] = command;
+    saveTermState();
+    termPrint(`Alias ${name} => ${command}`,'sys');
   },
-  syshealth:() => {
-    reloadShared();
-    const h = getLS('tscpp_health') || {};
-    Object.entries(h).forEach(([k,v]) => termPrint(`  ${k.padEnd(14)} ${v?'[ OK ]':'[ DAMAGED ]'}`, v?'sys':'err'));
-    if (!Object.keys(h).length) termPrint('  Health data not found. Run terminal for full diagnostic.', 'dim');
+  status: () => {
+    termPrint(`USER: ${termIsAdmin?'ROOT':'AGENT'}`,'sys');
+    termPrint(`CWD: ${termCwd}`,'sys');
+    termPrint(`WIFI: ${getTermState('hasWifi')?'AVAILABLE':'NONE'}`,'sys');
+    termPrint(`UPLINK: ${getTermState('uplink')?'ACTIVE':'NONE'}`,'sys');
+    termPrint(`TRACE RISK: ${getTermState('traceRisk')}%`,'sys');
   },
-  logout:() => { if(!termIsAdmin){termPrint('Not in ROOT session.','err');return;} termIsAdmin=false; termUpdatePrompt(); termPrint('ROOT session ended.','sys'); },
+  chmod: (args) => { if (!termIsAdmin) { termPrint('chmod: ROOT required','err'); return; } if (!args[0] || !args[1]) { termPrint('Usage: chmod [file] [mode]','err'); return; } termPrint(`Permission ${args[1]} set on ${args[0]}`,'sys'); },
+  zip: (args) => { if (!args[0]) { termPrint('Usage: zip [file]','err'); return; } termPrint(`Compressed ${args[0]} to ${args[0]}.zip`, 'sys'); },
+  unzip: (args) => { if (!args[0]) { termPrint('Usage: unzip [file]','err'); return; } termPrint(`Uncompressed ${args[0]} to ${args[0].replace(/\.gz$/,'')}`, 'sys'); },
+  download: (args) => {
+    if (!termIsAdmin) { termPrint('download: ROOT required','err'); return; }
+    const fname = args[0]; if (!fname) { termPrint('Usage: download [file]','err'); return; }
+    const content = files[fname] || SYSFILES[fname]; if (!content) { termPrint('download: file not found','err'); return; }
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    termPrint(`Downloaded ${fname}`,'sys');
+  },
+  connect: () => { setTermState('uplink', true); termPrint('Connected to TSCPP uplink.', 'sys'); },
+  sidebar: () => { setTermState('sidebar', !getTermState('sidebar')); termPrint(`Sidebar ${getTermState('sidebar')?'enabled':'disabled'}`, 'sys'); },
+  minimap: () => { setTermState('minimap', !getTermState('minimap')); termPrint(`Minimap ${getTermState('minimap')?'enabled':'disabled'}`, 'sys'); },
+  theme: (args) => { if (!args[0]) { termPrint('Usage: theme [name]','err'); return; } settingSet('HKEY_AGENT','Terminal','Theme', args[0]); termPrint(`Theme set to ${args[0]}`, 'sys'); },
+  matrix: () => { termPrint('Entering matrix...', 'sys'); setTimeout(()=>termPrint('Matrix display not supported in this terminal.', 'dim'), 300); },
+  man: (args) => { if (!args[0]) { termPrint('Usage: man [command]','err'); return; } const info = TERM_CMD_HELP[args[0]]; info ? termPrint(`MAN ${args[0]}: ${info.desc}`, 'sys') : termPrint(`Manual for ${args[0]} not available.`, 'dim'); },
+  rename: (args) => {
+    if (!termIsAdmin) { termPrint('rename: ROOT required','err'); return; }
+    if (args.length < 2) { termPrint('Usage: rename [src] [dest]','err'); return; }
+    const src = args[0]; const dst = args[1];
+    if (!files[src] && !(src in SYSFILES)) { termPrint(`rename: ${src}: No such file`,'err'); return; }
+    if (files[dst] || dst in SYSFILES) { termPrint('rename: destination exists','err'); return; }
+    files[dst] = files[src] ?? SYSFILES[src];
+    fileLocs[dst] = fileLocs[src] || '/home/agent';
+    delete files[src];
+    delete fileLocs[src];
+    LS.setItem('tscpp_files', JSON.stringify(files));
+    LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+    termPrint(`Renamed ${src} to ${dst}`,'success');
+  },
+  specs: () => {
+    termPrint('HARDWARE SPECIFICATIONS', 'sys');
+    const cpu = hardware?.cpu ? `${hardware.cpu}` : 'Unknown';
+    const gpu = hardware?.gpu ? `${hardware.gpu}` : 'Unknown';
+    const ram = hardware?.ram ? `${hardware.ram}` : 'Unknown';
+    termPrint(`  CPU: ${cpu}`, '');
+    termPrint(`  GPU: ${gpu}`, '');
+    termPrint(`  RAM: ${ram}`, '');
+  },
+  apps: () => {
+    if (!software.length) { termPrint('No software installed.', 'dim'); return; }
+    termPrint('INSTALLED SOFTWARE', 'sys');
+    software.forEach(item => termPrint(`  ${item}`, ''));
+  },
+  browser: (args) => {
+    const target = args.join(' ') || 'tscpp://home';
+    termPrint(`Opening browser target: ${target}`, 'sys');
+    if (window.open) window.open(target, '_blank', 'noopener');
+  },
+  passwd: (args) => {
+    const mode = (args[0] || 'lock').toLowerCase();
+    if (mode === 'root') {
+      if (!termIsAdmin) { termPrint('passwd: ROOT required', 'err'); return; }
+      LS.setItem('tscpp_root_key', String(args[1] || 'Secret@Agent983'));
+      termPrint('Root key updated.', 'success');
+    } else {
+      LS.setItem('tscpp_master_key', String(args[1] || 'TSCPP-1993'));
+      termPrint('Master key updated.', 'success');
+    }
+  },
+  regedit: () => {
+    openApp('registry');
+    termPrint('Registry editor opened.', 'sys');
+  },
+  'os-reinstall': () => {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    performSystemReinstall();
+  },
+  cron: (args) => {
+    const sub = (args[0] || 'list').toLowerCase();
+    if (sub === 'list') {
+      const value = files['cron.dat'] || SYSFILES['cron.dat'] || '';
+      value.split('\n').forEach(line => termPrint(`  ${line}`, 'sys'));
+    } else if (sub === 'clear') {
+      files['cron.dat'] = '';
+      LS.setItem('tscpp_files', JSON.stringify(files));
+      termPrint('Cron tasks cleared.', 'success');
+    } else {
+      termPrint('Usage: cron [list|clear]', 'err');
+    }
+  },
+  macro: (args) => {
+    const sub = (args[0] || 'list').toLowerCase();
+    if (sub === 'record') {
+      termState.macro.recording = true;
+      termState.macro.name = args[1] || 'macro1';
+      termState.macro.sequence = [];
+      saveTermState();
+      termPrint('Macro recording started.', 'sys');
+    } else if (sub === 'stop') {
+      termState.macro.recording = false;
+      saveTermState();
+      termPrint('Macro recording stopped.', 'sys');
+    } else if (sub === 'play') {
+      const name = args[1];
+      const macro = termState.macro; name ? termPrint(`Playing ${name}.`, 'sys') : termPrint('Usage: macro play [name]','err');
+    } else {
+      termPrint('Usage: macro [record|play|stop|list]', 'err');
+    }
+  },
 };
 
 async function termRun(raw) {
   reloadShared();
-  const args = raw.split(/\s+/);
-  const cmd  = args[0].toLowerCase();
+  const args = raw.trim().split(/\s+/);
+  if (!args[0]) return;
+  let cmd = args[0].toLowerCase();
+  if (termState.aliases && termState.aliases[cmd]) {
+    const aliased = termState.aliases[cmd];
+    raw = aliased + ' ' + args.slice(1).join(' ');
+    const aliasedArgs = raw.trim().split(/\s+/);
+    cmd = aliasedArgs[0].toLowerCase();
+  }
   termPrint(termPromptText() + ' ' + raw, 'echo');
 
   if (cmd === 'login') {
@@ -1343,8 +1860,43 @@ async function termRun(raw) {
     if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
     if (!args[1]) { termPrint('Usage: erase [file]','err'); return; }
     const fname = args[1].includes('/') ? args[1].split('/').pop() : args[1];
-    if (files[fname]) { delete files[fname]; delete fileLocs[fname]; LS.setItem('tscpp_files',JSON.stringify(files)); LS.setItem('tscpp_locs',JSON.stringify(fileLocs)); termPrint(`Erased: ${fname}`,'admin'); }
+    if (files[fname]) { delete files[fname]; delete fileLocs[fname]; LS.setItem('tscpp_files',JSON.stringify(files)); LS.setItem('tscpp_locs',JSON.stringify(fileLocs)); validateSystemState(); termPrint(`Erased: ${fname}`,'admin'); }
     else termPrint(`erase: ${fname}: No such file`,'err');
+    return;
+  }
+
+  if (cmd === 'mkdir') {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    if (!args[1]) { termPrint('Usage: mkdir [path]','err'); return; }
+    const path = args[1].startsWith('/') ? args[1] : (termCwd + '/' + args[1]).replace(/\/+/g,'/');
+    if (dirs.includes(path)) { termPrint('mkdir: directory exists','err'); return; }
+    dirs.push(path);
+    LS.setItem('tscpp_dirs', JSON.stringify(dirs));
+    termPrint(`Created directory: ${path}`,'success');
+    return;
+  }
+
+  if (cmd === 'rm') {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    if (!args[1]) { termPrint('Usage: rm [file]','err'); return; }
+    const fname = args[1].includes('/') ? args[1].split('/').pop() : args[1];
+    if (files[fname]) { delete files[fname]; delete fileLocs[fname]; LS.setItem('tscpp_files',JSON.stringify(files)); LS.setItem('tscpp_locs',JSON.stringify(fileLocs)); validateSystemState(); termPrint(`Deleted: ${fname}`,'success'); }
+    else termPrint(`rm: ${fname}: No such file`,'err');
+    return;
+  }
+
+  if (cmd === 'mv') {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    if (args.length < 3) { termPrint('Usage: mv [src] [dest]','err'); return; }
+    const src = args[1].includes('/') ? args[1].split('/').pop() : args[1];
+    const dst = args[2].includes('/') ? args[2].split('/').pop() : args[2];
+    if (!files[src]) { termPrint(`mv: ${src}: No such file`,'err'); return; }
+    if (files[dst] || dst in SYSFILES) { termPrint(`mv: destination exists`,'err'); return; }
+    files[dst] = files[src];
+    fileLocs[dst] = fileLocs[src];
+    delete files[src];
+    delete fileLocs[src];
+    LS.setItem('tscpp_files',JSON.stringify(files)); LS.setItem('tscpp_locs',JSON.stringify(fileLocs)); termPrint(`Renamed ${src} to ${dst}`,'success');
     return;
   }
 
@@ -1376,32 +1928,95 @@ async function termRun(raw) {
     return;
   }
 
-  if (ITERM_CMDS[cmd]) { ITERM_CMDS[cmd](); return; }
+  if (cmd === 'rmdir') {
+    if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; }
+    if (!args[1]) { termPrint('Usage: rmdir [path]','err'); return; }
+    const path = args[1].startsWith('/') ? args[1] : (termCwd + '/' + args[1]).replace(/\/\//g, '/');
+    if (!dirs.includes(path)) { termPrint(`rmdir: ${path}: No such directory`, 'err'); return; }
+    if (path === '/' || path === '/home/agent') { termPrint('rmdir: cannot remove root directories', 'err'); return; }
+    const children = dirs.filter(d => d !== path && d.startsWith(path + '/'));
+    if (children.length) { termPrint('rmdir: Directory not empty', 'err'); return; }
+    dirs = dirs.filter(d => d !== path);
+    LS.setItem('tscpp_dirs', JSON.stringify(dirs));
+    termPrint(`Removed directory: ${path}`, 'success');
+    return;
+  }
+
+  if (cmd === 'find') {
+    const term = args.slice(1).join(' ');
+    if (!term) { termPrint('Usage: find [term]','err'); return; }
+    Object.keys(files).filter(f => f.includes(term) || (files[f]||'').includes(term)).forEach(f => termPrint(`  ${f}`,'sys'));
+    return;
+  }
+
+  if (cmd === 'grep') {
+    if (args.length < 2) { termPrint('Usage: grep [term] [file]','err'); return; }
+    const term = args[1];
+    const fname = args[2] ? args[2] : null;
+    const candidates = fname ? [fname] : Object.keys(files);
+    candidates.forEach(f => {
+      const content = files[f] || SYSFILES[f];
+      if (content && content.includes(term)) {
+        content.split('\n').forEach((line, idx) => { if (line.includes(term)) termPrint(`  ${f}:${idx+1}: ${line}`,'sys'); });
+      }
+    });
+    return;
+  }
+
+  if (cmd === 'diff') {
+    if (args.length < 3) { termPrint('Usage: diff [a] [b]','err'); return; }
+    const a = files[args[1]] || SYSFILES[args[1]];
+    const b = files[args[2]] || SYSFILES[args[2]];
+    if (!a || !b) { termPrint('diff: one or both files not found','err'); return; }
+    const alines = a.split('\n');
+    const blines = b.split('\n');
+    const max = Math.max(alines.length, blines.length);
+    for (let i = 0; i < max; i++) {
+      const l = alines[i] || '';
+      const r = blines[i] || '';
+      if (l !== r) termPrint(`- ${i+1}: ${l}\n+ ${i+1}: ${r}`,'sys');
+    }
+    return;
+  }
+
+  if (cmd === 'nano') {
+    if (!args[1]) { termPrint('Usage: nano [file]','err'); return; }
+    if (!termIsAdmin && args[1] in SYSFILES) { termPrint('ERR: ROOT required for system files.','err'); return; }
+    const name = args[1];
+    const content = files[name] || SYSFILES[name] || '';
+    openEditor(name, content);
+    return;
+  }
+
+  if (cmd === 'scan') { termPrint('Scanned wireless networks: NET-01, CORP-GUEST, TSC-SECURE','sys'); return; }
+  if (cmd === 'hack') { termPrint(args[1] ? `Attempting hack on ${args[1]}... failed.` : 'Usage: hack [id]','err'); return; }
+  if (cmd === 'wifi-override') { setTermState('wifiOverride', true); termPrint('WiFi override active. Network access expanded.','sys'); return; }
+  if (cmd === 'tunnel') { termPrint(args[1] ? `Opening tunnel to ${args[1]}...` : 'Usage: tunnel [ip]','err'); return; }
+  if (cmd === 'ping') { termPrint(args[1] ? `PING ${args[1]}: 32 bytes of data... time=32ms` : 'Usage: ping [host]','err'); return; }
+  if (cmd === 'trace') { termPrint(args[1] ? `Tracing route to ${args[1]}... 4 hops` : 'Usage: trace [host]','err'); return; }
+  if (cmd === 'netstat') { termPrint('Proto Local Address Remote Address State\nTCP 10.0.0.5:22 10.0.0.2:54321 ESTABLISHED','sys'); return; }
+  if (cmd === 'portmap' || cmd === 'nmap') { termPrint(args[1] ? `Open ports on ${args[1]}: 22, 80, 443` : 'Usage: '+cmd+' [host]','err'); return; }
+  if (cmd === 'sniff') { setTermState('packetSniff', !getTermState('packetSniff')); termPrint(`Packet sniffing ${getTermState('packetSniff')?'enabled':'disabled'}`,'sys'); return; }
+  if (cmd === 'arp') { termPrint('ARP table:\n10.0.0.1 -> aa:bb:cc:dd:ee:ff','sys'); return; }
+  if (cmd === 'spoof') { termPrint(args[1] ? `Spoofing ${args[1]}...` : 'Usage: spoof [ip]','err'); return; }
+  if (cmd === 'bruteforce') { termPrint(args[1] ? `Brute force on ${args[1]}... invalid password` : 'Usage: bruteforce [target]','err'); return; }
+  if (cmd === 'inject') { termPrint('Payload injected. Firewall evasion active.','sys'); return; }
+  if (cmd === 'keylog') { setTermState('keylogger', !getTermState('keylogger')); termPrint(`Keylogger ${getTermState('keylogger')?'enabled':'disabled'}`,'sys'); return; }
+  if (cmd === 'crack') { termPrint(args[1] ? `Cracking hash ${args[1]}... done: password123` : 'Usage: crack [hash]','err'); return; }
+  if (cmd === 'decrypt') { if (!args[1]) { termPrint('Usage: decrypt [str]','err'); return; } try { termPrint(atob(args[1]), 'sys'); } catch(e) { termPrint('decrypt: invalid input','err'); } return; }
+  if (cmd === 'encode') { if (!args[1]) { termPrint('Usage: encode [text]','err'); return; } termPrint(btoa(args.slice(1).join(' ')), 'sys'); return; }
+  if (cmd === 'decode') { if (!args[1]) { termPrint('Usage: decode [text]','err'); return; } try { termPrint(atob(args[1]), 'sys'); } catch(e) { termPrint('decode: invalid input','err'); } return; }
+  if (cmd === 'exfil') { if (!args[1]) { termPrint('Usage: exfil [file]','err'); return; } termPrint(`Exfiltrated ${args[1]} to remote server.`, 'sys'); return; }
+  if (cmd === 'firewall') { if (!args[1]) { termPrint('Usage: firewall [on|off]','err'); return; } setTermState('firewall', args[1] === 'on'); termPrint(`Firewall ${getTermState('firewall')?'enabled':'disabled'}`,'sys'); return; }
+  if (cmd === 'vpn') { if (!args[1]) { termPrint('Usage: vpn [on|off]','err'); return; } setTermState('vpn', args[1] === 'on'); termPrint(`VPN ${getTermState('vpn')?'enabled':'disabled'}`,'sys'); return; }
+  if (cmd === 'proxy') { if (!args[1]) { termPrint('Usage: proxy [ip]','err'); return; } setTermState('proxy', args[1]); termPrint(`Proxy set to ${args[1]}`,'sys'); return; }
+  if (cmd === 'locate') { termPrint(args[1] ? `Located ${args[1]} at 34.0522,-118.2437` : 'Usage: locate [target]','err'); return; }
+  if (cmd === 'ps') { termPrint('PID USER   CMD\n1001 agent tshell\n1002 root systemd','sys'); return; }
+  if (cmd === 'kill') { if (!args[1]) { termPrint('Usage: kill [pid]','err'); return; } termPrint(`Killed process ${args[1]}`,'sys'); return; }
+  if (cmd === 'restore') { if (!termIsAdmin) { termPrint('ERR: ROOT required.','err'); return; } if (!args[1]) { termPrint('Usage: restore [file]','err'); return; } termPrint(`Restored ${args[1]} from backup.`, 'sys'); return; }
+
+  if (ITERM_CMDS[cmd]) { ITERM_CMDS[cmd](args.slice(1)); return; }
   termPrint(`${cmd}: command not found. Type help.`, 'err');
-}
-
-/* ── FILE MANAGER ────────────────────────────────────────────────────────── */
-let fmCwd = '/home/agent';
-let fmSelected = null;
-
-function buildFileManager() {
-  const dirItems = dirs.map(d =>
-    `<div class="fm-dir-item${d===fmCwd?' active':''}" onclick="fmNav('${d}')">${d==='/'?'/ root':d.replace('/home/agent','~ home')}</div>`
-  ).join('');
-
-  return `<div class="app-filemanager" id="fm-app">
-    <div class="fm-toolbar">
-      <button class="fm-nav-btn" onclick="fmNav('..')">← Back</button>
-      <button class="fm-nav-btn" onclick="fmRefresh()">↺</button>
-      <input class="fm-path" id="fm-path-input" value="${fmCwd}" onkeydown="if(event.key==='Enter')fmNav(this.value)">
-      <button class="fm-nav-btn" onclick="fmNewFile()">+ New</button>
-    </div>
-    <div class="fm-body">
-      <div class="fm-sidebar" id="fm-sidebar">${dirItems}</div>
-      <div class="fm-main" id="fm-main"></div>
-    </div>
-    <div class="fm-statusbar" id="fm-status">Ready</div>
-  </div>`;
 }
 
 function fmRender() {
@@ -1479,12 +2094,64 @@ function fmOpenFile(f) {
 function fmNewFile() {
   const name = prompt('New file name (e.g. notes.txt):');
   if (!name || !name.trim()) return;
-  files[name.trim()] = '';
-  fileLocs[name.trim()] = fmCwd;
+  const fileName = name.trim();
+  if (files[fileName] || fileName in SYSFILES) { notify('File already exists', 'warn'); return; }
+  files[fileName] = '';
+  fileLocs[fileName] = fmCwd;
   LS.setItem('tscpp_files', JSON.stringify(files));
   LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
   fmRender();
-  fmOpenFile(name.trim());
+  fmOpenFile(fileName);
+}
+
+function fmNewFolder() {
+  const name = prompt('New folder name:');
+  if (!name || !name.trim()) return;
+  const folderName = name.trim().replace(/\/+/g, '/');
+  const path = fmCwd === '/' ? '/' + folderName : fmCwd + '/' + folderName;
+  if (dirs.includes(path)) { notify('Folder already exists', 'warn'); return; }
+  dirs.push(path);
+  dirs.sort();
+  LS.setItem('tscpp_dirs', JSON.stringify(dirs));
+  fmRender();
+  notify(`Folder created: ${folderName}`, 'ok');
+}
+
+function fmDeleteSelected() {
+  if (!fmSelected) { notify('Select a file first', 'warn'); return; }
+  const name = fmSelected;
+  if (name in SYSFILES && !termIsAdmin) { notify('ROOT required for system files', 'err'); return; }
+  if (!confirm(`Delete ${name}?`)) return;
+  if (files[name] !== undefined) {
+    delete files[name];
+    delete fileLocs[name];
+    LS.setItem('tscpp_files', JSON.stringify(files));
+    LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+    fmSelected = null;
+    fmRender();
+    validateSystemState();
+    notify(`Deleted ${name}`, 'ok');
+    return;
+  }
+  notify('File not found', 'err');
+}
+
+function fmRenameSelected() {
+  if (!fmSelected) { notify('Select a file first', 'warn'); return; }
+  if (fmSelected in SYSFILES && !termIsAdmin) { notify('ROOT required for system files', 'err'); return; }
+  const name = prompt('Rename file to:', fmSelected);
+  if (!name || !name.trim() || name.trim() === fmSelected) return;
+  const newName = name.trim();
+  if (files[newName] || newName in SYSFILES) { notify('File name already exists', 'warn'); return; }
+  files[newName] = files[fmSelected];
+  fileLocs[newName] = fileLocs[fmSelected] || fmCwd;
+  delete files[fmSelected];
+  delete fileLocs[fmSelected];
+  LS.setItem('tscpp_files', JSON.stringify(files));
+  LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
+  fmSelected = newName;
+  fmRender();
+  notify(`Renamed to ${newName}`, 'ok');
 }
 
 /* ── TEXT EDITOR ─────────────────────────────────────────────────────────── */
@@ -1529,12 +2196,14 @@ function editorSave() {
   const ta = document.getElementById('ed-body');
   const mod = document.getElementById('ed-modified');
   if (!ta || !editorFile) { notify('No file open', 'warn'); return; }
+  if (editorFile in SYSFILES && !termIsAdmin) { notify('ROOT required to save system files', 'err'); return; }
   files[editorFile] = ta.value;
   fileLocs[editorFile] = fileLocs[editorFile] || '/home/agent';
   LS.setItem('tscpp_files', JSON.stringify(files));
   LS.setItem('tscpp_locs', JSON.stringify(fileLocs));
   editorOriginal = ta.value;
   if (mod) mod.textContent = '';
+  validateSystemState();
   notify(`Saved: ${editorFile}`, 'ok');
 }
 
@@ -1675,6 +2344,10 @@ function buildRegistry() {
     <div class="rg-mini-toolbar">
       <span style="font-family:Orbitron,monospace;font-size:9px;color:var(--amber);letter-spacing:2px;">REGISTRY</span>
       <input class="rg-mini-path" id="rg-path-disp" readonly value="HKEY_SYSTEM">
+      <button class="fm-nav-btn" onclick="rgAddKey()">+ Key</button>
+      <button class="fm-nav-btn" onclick="rgDeleteKey()">🗑 Key</button>
+      <button class="fm-nav-btn" onclick="rgAddValue()">+ Value</button>
+      <button class="fm-nav-btn" onclick="rgDeleteValue()">🗑 Value</button>
     </div>
     <div class="rg-mini-body">
       <div class="rg-mini-tree" id="rg-tree"></div>
@@ -1731,6 +2404,67 @@ function rgSelectKey(hive, key) {
   ).join('') || '<div style="padding:8px;font-size:10px;color:#333;">No values</div>';
 }
 
+function rgAddKey() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  const path = prompt('New key path (HIVE\\Key):', 'HKEY_SYSTEM\\NewKey');
+  if (!path) return;
+  const parts = path.split('\\');
+  if (parts.length !== 2) { notify('Path must be HIVE\\Key', 'err'); return; }
+  const [hive, key] = parts;
+  if (!registry[hive]) registry[hive] = {};
+  if (registry[hive][key]) { notify('Key already exists', 'warn'); return; }
+  registry[hive][key] = {};
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgBuild();
+  notify(`Created ${hive}\\${key}`, 'ok');
+}
+
+function rgDeleteKey() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  if (!confirm(`Delete registry key ${rgCurHive}\\${rgCurKey}?`)) return;
+  delete registry[rgCurHive][rgCurKey];
+  if (!Object.keys(registry[rgCurHive]).length) delete registry[rgCurHive];
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgCurKey = null;
+  rgBuild();
+  validateSystemState();
+  notify('Registry key deleted', 'ok');
+}
+
+function rgAddValue() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  const name = prompt('Value name:');
+  if (!name) return;
+  const type = prompt('Type (REG_SZ, REG_DWORD, REG_BOOL):', 'REG_SZ');
+  const value = prompt('Value:');
+  if (value === null) return;
+  let parsed = value;
+  if (type === 'REG_BOOL') parsed = value.toLowerCase()==='true' || value==='1';
+  else if (type === 'REG_DWORD') { parsed = parseInt(value); if (isNaN(parsed)) { notify('Must be integer', 'err'); return; } }
+  if (!registry[rgCurHive]) registry[rgCurHive] = {};
+  if (!registry[rgCurHive][rgCurKey]) registry[rgCurHive][rgCurKey] = {};
+  registry[rgCurHive][rgCurKey][name] = { type: type || 'REG_SZ', value: parsed };
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgSelectKey(rgCurHive, rgCurKey);
+  validateSystemState();
+  notify(`Value ${name} added`, 'ok');
+}
+
+function rgDeleteValue() {
+  if (!isAdmin) { notify('ROOT required', 'err'); return; }
+  if (!rgCurHive || !rgCurKey) { notify('Select a key first', 'warn'); return; }
+  const name = prompt('Value name to delete:');
+  if (!name) return;
+  if (!registry?.[rgCurHive]?.[rgCurKey]?.[name]) { notify('Value not found', 'err'); return; }
+  delete registry[rgCurHive][rgCurKey][name];
+  LS.setItem('tscpp_registry', JSON.stringify(registry));
+  rgSelectKey(rgCurHive, rgCurKey);
+  validateSystemState();
+  notify(`Value ${name} deleted`, 'ok');
+}
+
 function rgEditInline(hive, key, name) {
   if (!isAdmin) { notify('ROOT required to edit registry', 'err'); return; }
   const entry = registry?.[hive]?.[key]?.[name];
@@ -1743,6 +2477,7 @@ function rgEditInline(hive, key, name) {
   registry[hive][key][name].value = parsed;
   LS.setItem('tscpp_registry', JSON.stringify(registry));
   rgSelectKey(hive, key);
+  validateSystemState();
   notify(`${name} updated`, 'ok');
 }
 
@@ -2051,6 +2786,8 @@ const appInitQueue = {
   terminal:    () => { initTerminal(); termUpdatePrompt(); },
   filemanager: () => fmRender(),
   editor:      () => initEditor(),
+  calculator:  () => {},
+  notepad:     () => initNotepad(),
   sysmon:      () => { sysmonRefresh(); },
   registry:    () => rgBuild(),
   settings:    () => {},
