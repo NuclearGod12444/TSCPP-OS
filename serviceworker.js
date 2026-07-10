@@ -1,4 +1,4 @@
-const cacheName = 'TSCPPDESKTOP-v1';
+const cacheName = 'TSCPPDESKTOP-v5.1.1';
 const staticAssets = [
   './',
   './index.html',
