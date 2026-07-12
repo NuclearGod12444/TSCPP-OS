@@ -163,8 +163,12 @@ body {
   font-family: 'Share Tech Mono', monospace;
   color: #fff;
   cursor: default;
+  overflow-y: auto;
 }
 #bsod-overlay.active { display: flex; }
+#bsod-overlay.locked { pointer-events: auto; }
+/* Prevent any interaction with elements behind BSOD */
+#bsod-overlay.active ~ * { pointer-events: none !important; }
 .bsod-title { font-size: 48px; font-weight: 700; margin-bottom: 20px; letter-spacing: 2px; }
 .bsod-body { font-size: 14px; line-height: 1.8; max-width: 700px; margin-bottom: 30px; }
 .bsod-body p { margin-bottom: 12px; }
@@ -173,6 +177,39 @@ body {
 .bsod-prog-fill { height: 100%; background: #fff; width: 0; animation: bsod-progress 4s linear forwards; }
 @keyframes bsod-progress { 0% { width: 0%; } 100% { width: 100%; } }
 .bsod-footer { margin-top: 30px; font-size: 11px; opacity: 0.7; }
+.bsod-reinstall-btn {
+  background: #cc0000; color: #fff; border: 2px solid #ff4444;
+  font-family: 'Orbitron', monospace; font-size: 14px;
+  letter-spacing: 2px; padding: 14px 32px; cursor: pointer; font-weight: 700;
+  margin-top: 20px; transition: all 0.2s;
+  animation: bsod-pulse-btn 1.5s ease-in-out infinite;
+}
+.bsod-reinstall-btn:hover { background: #ff0000; border-color: #ff8888; }
+@keyframes bsod-pulse-btn { 0%,100%{box-shadow:0 0 10px rgba(255,0,0,0.3);} 50%{box-shadow:0 0 30px rgba(255,0,0,0.7);} }
+.bsod-severity-badge {
+  display: inline-block; padding: 4px 12px; font-size: 11px;
+  font-family: 'Orbitron', monospace; letter-spacing: 1px; margin-bottom: 10px;
+}
+.bsod-severity-badge.critical { background: #cc0000; color: #fff; border: 1px solid #ff4444; }
+.bsod-severity-badge.warning { background: #886600; color: #ffcc00; border: 1px solid #ffaa00; }
+.bsod-severity-badge.info { background: #004488; color: #88ccff; border: 1px solid #00aaff; }
+
+/* ── BSOD REINSTALL OVERLAY ──────────────────────────────────────────────── */
+#bsod-reinstall-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: #000;
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: 'Share Tech Mono', monospace;
+  color: #fff;
+}
+#bsod-reinstall-overlay.active { display: flex; }
+.bsod-reinstall-title { font-size: 28px; font-weight: 700; margin-bottom: 20px; letter-spacing: 4px; color: #ff4444; }
+.bsod-reinstall-sub { font-size: 13px; color: #888; margin-bottom: 30px; }
+.bsod-reinstall-progress { width: 400px; height: 4px; background: #222; margin-bottom: 10px; }
+.bsod-reinstall-prog-fill { height: 100%; background: #ff4444; width: 0%; transition: width 0.3s; }
+.bsod-reinstall-status { font-size: 12px; color: #aaa; margin-top: 10px; }
+.bsod-reinstall-detail { font-size: 11px; color: #666; margin-top: 6px; }
 
 /* ── ALT+TAB SWITCHER ────────────────────────────────────────────────────── */
 #alttab-overlay {
@@ -513,6 +550,7 @@ body {
   padding: 2px 8px; margin-bottom: 6px; display: inline-block;
 }
 .upd-section-label.feat  { background: rgba(0,255,65,0.1);  color: var(--green-dim); }
+.upd-section-label.futureupd  { background: rgba(251, 255, 0, 0.247);  color: var(--green-dim); }
 .upd-section-label.fix   { background: rgba(0,170,255,0.1); color: var(--blue); }
 .upd-section-label.impr  { background: rgba(255,170,0,0.1); color: var(--amber); }
 .upd-section-label.break { background: rgba(255,51,51,0.1);  color: var(--red); }
@@ -780,14 +818,24 @@ body {
 <!-- BSOD Overlay -->
 <div id="bsod-overlay">
   <div class="bsod-title">☠</div>
-  <div class="bsod-body">
+  <div class="bsod-body" id="bsod-body-content">
     <p>A fatal exception 0x0D has occurred.</p>
     <p>TSCPP-OS has encountered a critical system error and needs to restart.</p>
     <p>The system has been shut down to prevent further damage to your hardware configuration.</p>
   </div>
   <div class="bsod-code" id="bsod-code">*** STOP: 0x0000000D (0x00000000, 0x00000000, 0x00000000, 0x00000000)</div>
   <div class="bsod-progress"><div class="bsod-prog-fill"></div></div>
+  <div id="bsod-actions" style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"></div>
   <div class="bsod-footer" id="bsod-footer">Collecting error information and preparing system restart...</div>
+</div>
+
+<!-- BSOD Reinstall Overlay -->
+<div id="bsod-reinstall-overlay">
+  <div class="bsod-reinstall-title">⚠️ TSCPP-OS SYSTEM RECOVERY</div>
+  <div class="bsod-reinstall-sub">Reinstalling the operating system. This will erase all user data, settings, and files.<br>This process cannot be cancelled once started.</div>
+  <div class="bsod-reinstall-progress"><div class="bsod-reinstall-prog-fill" id="bsod-reinstall-prog-fill"></div></div>
+  <div class="bsod-reinstall-status" id="bsod-reinstall-status">Initializing system recovery...</div>
+  <div class="bsod-reinstall-detail" id="bsod-reinstall-detail">Preparing to restore factory defaults</div>
 </div>
 
 <!-- Alt+Tab Switcher -->
@@ -799,7 +847,7 @@ body {
 <div id="snap-indicator"></div>
 
 <script>
-const TSCPP_DESKTOP_VERSION = '5.3.0';
+const TSCPP_DESKTOP_VERSION = '5.3.1';
 const TSCPP_DESKTOP_DATE    = '2026-07-10';
 
 function refreshVersionLabels() {
@@ -813,6 +861,19 @@ function refreshVersionLabels() {
 refreshVersionLabels();
 
 const DESKTOP_CHANGELOG = {
+  '5.3.1': {
+    date: '2026-7-11',
+    sections: [
+      { type:'impr', label:'IMPROVEMENTS', items:[
+        'Finished the BSOD system, it is supposed to actually be a reliable diagnostic tool rather than a toy.',
+      ]},
+      { type:'futureupd', label:'FUTURE UPDATES', items:[
+        'Website Shortcut system is planned to be fully built and work correctly as planned.',
+        'Hardware damage system improvements, I plan to fix the artifacts effects that were supposed to work already but dont seem to be.',
+        'Fix file directory system and registry system, the files and registry items being invisible and buttons not functioning is a known problem as of now.',
+      ]},
+    ],
+  },
   '5.3.0': {
     date: '2026-7-10',
     sections: [
@@ -3766,6 +3827,10 @@ function showBSOD() {
   const diag = systemDiagnostic();
   const perf = diag.perf;
   
+  // Determine severity level
+  const isSevere = diag.issues.length >= 5 || perf.unstable || perf.score < 30;
+  const isCritical = diag.issues.length >= 8 || (perf.defectRisk > 60 && diag.issues.length > 0);
+  
   // Determine stop code based on most severe issue
   const stopCodes = [
     { code: '0x0000000D', name: 'IRQL_NOT_LESS_OR_EQUAL' },
@@ -3785,12 +3850,24 @@ function showBSOD() {
     { code: '0x00000109', name: 'CRITICAL_STRUCTURE_CORRUPTION' },
   ];
   
-  const severity = diag.issues.length > 5 ? 2 : diag.issues.length > 0 ? 1 : 0;
   const stopIdx = Math.min(diag.issues.length, stopCodes.length - 1);
   const stop = stopCodes[stopIdx] || stopCodes[0];
   
+  // Determine severity badge
+  let severityBadge = '';
+  if (isCritical) {
+    severityBadge = '<div class="bsod-severity-badge critical">⚠️ CRITICAL — System is unstable. OS reinstall recommended.</div>';
+  } else if (isSevere) {
+    severityBadge = '<div class="bsod-severity-badge warning">⚠️ SEVERE — Multiple system issues detected.</div>';
+  } else if (diag.issues.length > 0) {
+    severityBadge = '<div class="bsod-severity-badge warning">⚠️ MODERATE — Some system issues detected.</div>';
+  } else {
+    severityBadge = '<div class="bsod-severity-badge info">ℹ️ INFO — No critical issues found.</div>';
+  }
+  
   // Build BSOD body with real diagnostic info
   let bodyHTML = `<p>A fatal exception ${stop.code} (${stop.name}) has occurred.</p>`;
+  bodyHTML += severityBadge;
   bodyHTML += `<p>TSCPP-OS has detected ${diag.issues.length} critical issue(s) and ${diag.warnings.length} warning(s) in the system.</p>`;
   
   if (diag.issues.length > 0) {
@@ -3818,8 +3895,49 @@ function showBSOD() {
     bodyHTML += `<p style="font-size:12px;">This BSOD was triggered manually for diagnostic purposes.</p>`;
   }
   
+  if (isCritical || isSevere) {
+    bodyHTML += `<p style="color:#ff4444;font-size:14px;font-weight:700;margin-top:16px;padding:10px;border:1px solid #ff4444;background:rgba(255,0,0,0.1);">
+      ${isCritical ? 'SYSTEM IS CRITICALLY CORRUPTED. Terminal functions may be unstable. Reinstall OS to restore system integrity.' : 'WARNING: System integrity is compromised. It is strongly recommended to reinstall the OS.'}
+    </p>`;
+  }
+  
   document.querySelector('#bsod-overlay .bsod-body').innerHTML = bodyHTML;
   document.getElementById('bsod-code').textContent = `*** STOP: ${stop.code} (0x00000000, 0x00000000, 0x00000000, 0x00000000)`;
+  
+  // Actions container
+  const actionsEl = document.getElementById('bsod-actions');
+  actionsEl.innerHTML = '';
+  
+  // Always show reinstall button for severe/critical
+  if (isCritical || isSevere) {
+    const reinstallBtn = document.createElement('button');
+    reinstallBtn.className = 'bsod-reinstall-btn';
+    reinstallBtn.textContent = isCritical ? '⚠️ SYSTEM RECOVERY — REINSTALL OS' : '⚠️ REINSTALL OPERATING SYSTEM';
+    reinstallBtn.title = 'This will erase all data and restore factory defaults. Cannot be undone.';
+    reinstallBtn.onclick = function(e) {
+      e.stopPropagation();
+      startBsodReinstall();
+    };
+    actionsEl.appendChild(reinstallBtn);
+  }
+  
+  // Dismiss note for non-critical
+  if (!isCritical && !isSevere) {
+    const dismissNote = document.createElement('p');
+    dismissNote.style.cssText = 'color:#88ccff;font-size:12px;margin:10px 0;';
+    dismissNote.textContent = 'Press ESC to dismiss or type CLOSE + Enter';
+    actionsEl.appendChild(dismissNote);
+  } else if (isCritical) {
+    const criticalNote = document.createElement('p');
+    criticalNote.style.cssText = 'color:#ff6666;font-size:12px;margin:10px 0;font-weight:700;';
+    criticalNote.textContent = '⚠️ CRITICAL SYSTEM STATE — OS reinstall is required. ESC and CLOSE are disabled.';
+    actionsEl.appendChild(criticalNote);
+  } else if (isSevere) {
+    const severeNote = document.createElement('p');
+    severeNote.style.cssText = 'color:#ffaa00;font-size:12px;margin:10px 0;';
+    severeNote.textContent = '⚠️ SEVERE SYSTEM STATE — You can dismiss but reinstall is strongly recommended.';
+    actionsEl.appendChild(severeNote);
+  }
   
   // Footer with system info
   const footer = document.getElementById('bsod-footer');
@@ -3828,16 +3946,107 @@ function showBSOD() {
     Issues: ${diag.issues.length} critical, ${diag.warnings.length} warnings | 
     Storage: ${(diag.totalSize / 1024).toFixed(1)}KB used |
     Hardware: ${perf.grade} (${perf.score}%) |
-    Defect Risk: ${perf.defectRisk}% |
-    Press ESC to dismiss or type CLOSE + Enter
+    Defect Risk: ${perf.defectRisk}%
   `;
   
+  // Mark as locked if critical
+  overlay.dataset.bsodLocked = isCritical ? 'true' : 'false';
   overlay.classList.add('active');
 }
 
 function hideBSOD() {
   const overlay = document.getElementById('bsod-overlay');
-  if (overlay) overlay.classList.remove('active');
+  if (!overlay) return;
+  // If locked (critical), hide is disabled
+  if (overlay.dataset.bsodLocked === 'true') {
+    notify('BSOD cannot be dismissed: System is critically corrupted. Reinstall required.', 'err', 4000);
+    return;
+  }
+  // If severe but still allow dismiss, just warn
+  if (overlay.classList.contains('active')) {
+    overlay.classList.remove('active');
+    overlay.dataset.bsodLocked = 'false';
+  }
+}
+
+async function startBsodReinstall() {
+  // First confirm
+  if (!confirm('⚠️ SYSTEM RECOVERY\n\nThis will completely reinstall TSCPP-OS and restore factory defaults.\nALL user data, files, settings, registry, and software will be erased.\n\nThis process takes approximately 30 seconds and CANNOT be cancelled once started.\n\nProceed with OS reinstallation?')) {
+    return;
+  }
+  
+  // Show reinstall overlay
+  const reinstallOverlay = document.getElementById('bsod-reinstall-overlay');
+  const progFill = document.getElementById('bsod-reinstall-prog-fill');
+  const statusEl = document.getElementById('bsod-reinstall-status');
+  const detailEl = document.getElementById('bsod-reinstall-detail');
+  
+  reinstallOverlay.classList.add('active');
+  
+  // Simulated reinstall steps with progress
+  const steps = [
+    { pct: 0, status: 'Initializing system recovery...', detail: 'Preparing to restore factory defaults' },
+    { pct: 5, status: 'Backing up critical system data...', detail: 'Saving configuration metadata' },
+    { pct: 10, status: 'Wiping user data partition...', detail: 'Clearing files, registry, and settings' },
+    { pct: 18, status: 'Erasing software repository...', detail: 'Removing installed packages' },
+    { pct: 25, status: 'Purging system cache...', detail: 'Clearing temporary files and logs' },
+    { pct: 30, status: 'Restoring kernel modules...', detail: 'Reinstalling system kernel v6.5.0-tscpp' },
+    { pct: 38, status: 'Reconstructing file system...', detail: 'Creating directory structure' },
+    { pct: 45, status: 'Installing core system files...', detail: 'Deploying boot.cfg, kernel.cfg, auth.db' },
+    { pct: 52, status: 'Configuring network stack...', detail: 'Setting up network.conf, firewall.rules, hosts' },
+    { pct: 60, status: 'Building registry hive...', detail: 'Initializing HKEY_AGENT, HKEY_SYSTEM, HKEY_NETWORK' },
+    { pct: 68, status: 'Generating security credentials...', detail: 'Creating default access keys' },
+    { pct: 75, status: 'Installing desktop environment...', detail: 'Configuring window manager and desktop icons' },
+    { pct: 82, status: 'Optimizing system performance...', detail: 'Applying hardware profile defaults' },
+    { pct: 90, status: 'Finalizing installation...', detail: 'Verifying system integrity' },
+    { pct: 95, status: 'Running post-installation checks...', detail: 'Validating all system components' },
+    { pct: 100, status: 'Reinstallation complete!', detail: 'Rebooting into fresh TSCPP-OS...' },
+  ];
+  
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    statusEl.textContent = step.status;
+    detailEl.textContent = step.detail;
+    progFill.style.width = step.pct + '%';
+    
+    // Variable delay: quick at first, slower mid-process, then finalize
+    let delay = 400;
+    if (i > 3 && i < 10) delay = 600 + Math.random() * 400;
+    else if (i >= 10) delay = 500 + Math.random() * 300;
+    else if (i === steps.length - 1) delay = 1000;
+    
+    await sleep(delay);
+  }
+  
+  // Now perform the actual reinstall
+  await sleep(500);
+  
+  // Perform system reinstall
+  LS.removeItem('tscpp_files');
+  LS.removeItem('tscpp_dirs');
+  LS.removeItem('tscpp_locs');
+  LS.removeItem('tscpp_registry');
+  LS.removeItem('tscpp_health');
+  LS.removeItem('tscpp_history');
+  LS.removeItem('tscpp_state');
+  LS.removeItem('tscpp_hardware');
+  LS.removeItem('tscpp_software');
+  LS.removeItem('tscpp_macros');
+  LS.removeItem('tscpp_tutorials');
+  LS.removeItem('tscpp_mods');
+  LS.removeItem('tscpp_web_shortcuts');
+  
+  // Re-seed initial state
+  seedInitialState();
+  
+  statusEl.textContent = 'Reinstallation complete. Rebooting...';
+  detailEl.textContent = 'Enjoy a fresh TSCPP-OS experience!';
+  progFill.style.width = '100%';
+  
+  await sleep(1500);
+  
+  // Hard redirect to reload the OS
+  window.location.replace(window.location.pathname + '?reinstall=' + Date.now());
 }
 
 /* ── ALT+TAB SWITCHER ────────────────────────────────────────────────────── */
@@ -3955,6 +4164,11 @@ document.addEventListener('keydown', function(e) {
   // Escape to dismiss BSOD or Alt+Tab
   if (e.key === 'Escape') {
     if (document.getElementById('bsod-overlay')?.classList.contains('active')) {
+      const bsodEl = document.getElementById('bsod-overlay');
+      if (bsodEl.dataset.bsodLocked === 'true') {
+        notify('BSOD cannot be dismissed: System is critically corrupted. Use the reinstall button.', 'err', 3000);
+        return;
+      }
       hideBSOD();
       return;
     }
